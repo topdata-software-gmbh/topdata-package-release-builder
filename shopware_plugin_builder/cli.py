@@ -50,11 +50,14 @@ def create_release_info(branch, commit, version):
     table.add_row("Version", f"v{version}")
     table.add_row("Created", now.isoformat())
 
-    return table.get_string()
+    # Render the table to a string
+    with console.capture() as capture:
+        console.print(table)
+    return capture.get()
 
 
 @click.command()
-@click.option('--remote-path', required=True, help='Remote path for rsync (user@host:/path)')
+@click.option('--remote-path', required=False, help='Remote path for rsync (user@host:/path)')
 @click.option('--output-dir', default='./builds', help='Local directory for built archives')
 def build_plugin(remote_path, output_dir):
     """Build and package Shopware 6 plugin for release."""
@@ -97,15 +100,16 @@ def build_plugin(remote_path, output_dir):
                     temp_dir
                 )
 
-                # Sync to remote server
-                status.update("[bold blue]Syncing to remote server...")
-                subprocess.run([
-                    'rsync',
-                    '-av',
-                    '--progress',
-                    zip_path,
-                    remote_path
-                ], check=True)
+                # Sync to remote server if remote_path is provided
+                if remote_path:
+                    status.update("[bold blue]Syncing to remote server...")
+                    subprocess.run([
+                        'rsync',
+                        '-av',
+                        '--progress',
+                        zip_path,
+                        remote_path
+                    ], check=True)
 
         # Show success message
         console.print(Panel(f"""
@@ -113,13 +117,12 @@ def build_plugin(remote_path, output_dir):
 Plugin: {plugin_name}
 Version: v{version}
 Archive: {zip_name}
-Remote path: {remote_path}
+Remote path: {remote_path if remote_path else 'Not provided'}
         """, title="Success"))
 
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}", style="red")
         raise click.Abort()
-
 
 def main():
     """Entry point for the CLI."""
