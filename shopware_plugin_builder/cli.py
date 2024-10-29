@@ -121,5 +121,9 @@ Remote path: {remote_path}
         raise click.Abort()
 
 
-if __name__ == '__main__':
+def main():
+    """Entry point for the CLI."""
     build_plugin()
+
+if __name__ == '__main__':
+    main()
