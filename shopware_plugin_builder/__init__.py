@@ -1,0 +1,1 @@
+"""Shopware Plugin Builder package."""

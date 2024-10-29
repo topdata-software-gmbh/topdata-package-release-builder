@@ -37,3 +37,5 @@ htmlcov/
 
 # Project specific
 builds/
+.aider*
+.env
