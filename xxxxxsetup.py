@@ -11,7 +11,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'sw-build=shopware_plugin_builder.cli:main',
+            'sw-build=topdata_package_release_builder.cli:main',
         ],
     },
 )
