@@ -1,5 +1,5 @@
 [project]
-name = "shopware-plugin-builder"
+name = "topdata-package-release-builder"
 version = "0.1.0"
 description = "Build and package Shopware 6 plugins for release"
 requires-python = ">=3.8"
