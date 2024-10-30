@@ -12,7 +12,7 @@ def get_plugin_info(verbose=False, console=None):
 
     plugin_class = composer_data['extra']['shopware-plugin-class']
     plugin_name = plugin_class.split('\\')[-1]
-    version = composer_data['version']
+    version = composer_data['version'].lstrip('v')
 
     if verbose and console:
         console.print(f"[dim]→ Found plugin class: {plugin_class}[/]")
