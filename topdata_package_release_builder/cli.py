@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 import click
 import pytz
+from tabulate import tabulate
 
 console = Console()
 
@@ -38,23 +39,20 @@ def get_plugin_info():
 
 
 def create_release_info(branch, commit, version):
-    """Create release_info.txt with formatted content."""
-    now = datetime.now(pytz.timezone('Europe/Berlin'))
+    """Create a plain-text release_info.txt with formatted content."""
+    now = datetime.now(pytz.timezone('Europe/Berlin')).isoformat()
 
-    table = Table(show_header=False, show_lines=True)
-    table.add_column("Key", style="bold")
-    table.add_column("Value")
+    # Define the data as a list of lists
+    data = [
+        ["Branch", branch],
+        ["Commit ID", commit],
+        ["Version", f"v{version}"],
+        ["Created", now]
+    ]
 
-    table.add_row("Branch", branch)
-    table.add_row("Commit ID", commit)
-    table.add_row("Version", f"v{version}")
-    table.add_row("Created", now.isoformat())
-
-    # Render the table to a string
-    with console.capture() as capture:
-        console.print(table)
-    return capture.get()
-
+    # Generate the table as a plain-text string
+    table = tabulate(data, tablefmt="grid")
+    return table
 
 @click.command()
 @click.option('--remote-path', required=False, help='Remote path for rsync (user@host:/path)')
