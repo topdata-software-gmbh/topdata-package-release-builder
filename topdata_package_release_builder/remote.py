@@ -1,8 +1,11 @@
 """Remote synchronization functionality."""
 import subprocess
 
-def sync_to_remote(zip_path, remote_config):
+def sync_to_remote(zip_path, remote_config, verbose=False, console=None):
     """Sync the built plugin to a remote server."""
+    if verbose and console:
+        console.print("[dim]→ Preparing rsync command[/]")
+    
     rsync_cmd = [
         'rsync',
         '-av',
@@ -17,5 +20,15 @@ def sync_to_remote(zip_path, remote_config):
     # Add source and destination
     rsync_cmd.extend([zip_path, remote_config['path']])
     
-    subprocess.run(rsync_cmd, check=True)
-    return remote_config['path']
+    if verbose and console:
+        console.print(f"[dim]→ Executing rsync command: {' '.join(rsync_cmd)}[/]")
+    
+    try:
+        subprocess.run(rsync_cmd, check=True)
+        if verbose and console:
+            console.print("[dim]→ Rsync completed successfully[/]")
+        return remote_config['path']
+    except subprocess.CalledProcessError as e:
+        if verbose and console:
+            console.print(f"[red]→ Rsync failed with error: {str(e)}[/]")
+        raise

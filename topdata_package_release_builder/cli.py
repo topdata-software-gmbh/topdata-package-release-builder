@@ -22,7 +22,7 @@ console = Console()
 def build_plugin(output_dir, no_sync, verbose):
     """Build and package Shopware 6 plugin for release."""
     # Load environment variables
-    load_env()
+    load_env(verbose=verbose, console=console)
     try:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -65,14 +65,14 @@ def build_plugin(output_dir, no_sync, verbose):
 
                 # Get remote config and sync if enabled
                 sync_status = None
-                remote_config = get_remote_config(plugin_name)
+                remote_config = get_remote_config(plugin_name, verbose=verbose, console=console)
                 if remote_config:
                     if no_sync:
                         sync_status = False
                         console.print("[yellow]Remote sync is disabled by --no-sync flag[/]")
                     else:
                         status.update("[bold blue]Syncing to remote server...")
-                        sync_path = sync_to_remote(zip_path, remote_config)
+                        sync_path = sync_to_remote(zip_path, remote_config, verbose=verbose, console=console)
                         sync_status = sync_path
 
         _show_success_message(plugin_name, version, zip_name, output_dir, sync_status)
