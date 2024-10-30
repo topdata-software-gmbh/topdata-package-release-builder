@@ -19,7 +19,16 @@ console = Console()
 def build_plugin(remote_path, output_dir):
     """Build and package Shopware 6 plugin for release."""
     try:
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Check if builds/ is in .gitignore
+        gitignore_path = Path('.gitignore')
+        if gitignore_path.exists():
+            with open(gitignore_path, 'r') as f:
+                if 'builds/' not in f.read():
+                    console.print("[yellow]Warning:[/] The 'builds/' directory is not in .gitignore. "
+                                "It's recommended to add it to prevent committing built packages.")
 
         with console.status("[bold green]Building plugin...") as status:
             # Get information
@@ -49,20 +58,23 @@ def build_plugin(remote_path, output_dir):
                     status.update("[bold blue]Syncing to remote server...")
                     sync_to_remote(zip_path, remote_path)
 
-        _show_success_message(plugin_name, version, zip_name, remote_path)
+        _show_success_message(plugin_name, version, zip_name, remote_path, output_dir)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}", style="red")
         raise click.Abort()
 
-def _show_success_message(plugin_name, version, zip_name, remote_path):
+def _show_success_message(plugin_name, version, zip_name, remote_path, output_dir):
     """Display success message after build completion."""
     console.print(Panel(f"""
 [bold green]Plugin successfully built and deployed![/]
 Plugin: {plugin_name}
 Version: v{version}
 Archive: {zip_name}
+Location: {output_dir}/{zip_name}
 Remote path: {remote_path if remote_path else 'Not provided'}
+
+[italic]Note: Built packages are stored in the 'builds/' directory.[/]
     """, title="Success"))
 
 def main():
