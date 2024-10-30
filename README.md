@@ -1,28 +1,35 @@
-# Shopware Plugin Builder
+# Topdata Package Release Builder
 
-A tool for building and packaging Shopware 6 plugins.
+## About
+- A tool for building and packaging topdata packages (eg shopware6 plugin release zips)
+- 10/2024 created
 
 ## Installation
 
-```bash
-uv pip install -e .
+1. Clone the repository
+```
+git clone git@github.com:topdata-software-gmbh/topdata-package-release-builder.git
 ```
 
-## Development Setup
-
-1. Clone the repository
 2. Create a virtual environment:
-   ```bash
-   uv venv
-   source .venv/bin/activate
-   ```
+```bash
+uv venv
+source .venv/bin/activate
+```
+   
 3. Install dependencies:
-   ```bash
-   uv pip install -e ".[dev]"
-   ```
+```bash
+uv pip install -e ".[dev]"
+```
+
+4. test if the installation was successful:
+```bash
+ sw-build --help
+ ```
 
 ## Usage
 
+go to the root directory of the package you want to build and run the following command:
 ```bash
 sw-build --help
 ```
