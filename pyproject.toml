@@ -7,6 +7,7 @@ dependencies = [
     "rich>=13.0.0",
     "click>=8.0.0",
     "pytz",
+    "python-dotenv",
 ]
 
 [build-system]

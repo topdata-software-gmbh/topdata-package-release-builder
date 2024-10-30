@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.panel import Panel
 import click
 
+from .config import load_env, get_remote_config
 from .git import get_git_info
 from .plugin import get_plugin_info, copy_plugin_files, create_archive
 from .release import create_release_info, sync_to_remote
@@ -18,6 +19,8 @@ console = Console()
 @click.option('--output-dir', default='./builds', help='Local directory for built archives')
 def build_plugin(remote_path, output_dir):
     """Build and package Shopware 6 plugin for release."""
+    # Load environment variables
+    load_env()
     try:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -54,9 +57,12 @@ def build_plugin(remote_path, output_dir):
                 zip_path = os.path.join(output_dir, zip_name)
                 create_archive(output_dir, plugin_name, version, temp_dir)
 
-                if remote_path:
+                # Get remote config from environment if no explicit remote_path provided
+                remote_config = get_remote_config(plugin_name) if not remote_path else {'path': remote_path}
+                
+                if remote_config:
                     status.update("[bold blue]Syncing to remote server...")
-                    sync_to_remote(zip_path, remote_path)
+                    sync_to_remote(zip_path, remote_config)
 
         _show_success_message(plugin_name, version, zip_name, remote_path, output_dir)
 
