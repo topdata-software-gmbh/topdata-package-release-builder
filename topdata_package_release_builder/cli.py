@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """Command line interface for the Shopware Plugin Builder."""
 import os
+import sys
 from pathlib import Path
 import tempfile
 from rich.console import Console
 from rich.panel import Panel
 import click
+from InquirerPy import inquirer
 
 from .config import load_env, get_remote_config
 from .git import get_git_info
 from .plugin import get_plugin_info, copy_plugin_files, create_archive
 from .release import create_release_info
 from .remote import sync_to_remote
+from .version import VersionBump, bump_version, update_composer_version, get_major_version
 
 console = Console()
 
@@ -43,7 +46,32 @@ def build_plugin(output_dir, no_sync, verbose):
             branch, commit = get_git_info(verbose=verbose, console=console)
 
             status.update("[bold blue]Reading plugin information...")
-            plugin_name, version = get_plugin_info(verbose=verbose, console=console)
+            plugin_name, version, original_version = get_plugin_info(verbose=verbose, console=console)
+
+            # Version selection
+            status.stop()
+            major_version = get_major_version(original_version)
+            choices = [
+                {"name": bump.value, "value": bump.value}
+                for bump in VersionBump
+            ]
+            
+            version_choice = inquirer.select(
+                message=f"Current Version is {version} - choose the version increment method:",
+                choices=choices,
+                default=VersionBump.NONE.value,
+            ).execute()
+            
+            status.start()
+
+            # Update version if needed
+            bump_type = VersionBump(version_choice)
+            if bump_type != VersionBump.NONE:
+                new_version = bump_version(original_version, bump_type)
+                update_composer_version(new_version, verbose=verbose, console=console)
+                version = new_version.lstrip('v')
+                if verbose:
+                    console.print(f"[dim]→ Version updated to: {new_version}[/]")
 
             # Build process
             with tempfile.TemporaryDirectory() as temp_dir:

@@ -8,6 +8,7 @@ dependencies = [
     "click>=8.0.0",
     "pytz",
     "python-dotenv",
+    "InquirerPy>=0.3.4",
 ]
 
 [build-system]
