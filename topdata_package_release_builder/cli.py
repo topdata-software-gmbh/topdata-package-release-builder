@@ -18,13 +18,16 @@ console = Console()
 @click.command()
 @click.option('--output-dir', default='./builds', help='Local directory for built archives')
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
-def build_plugin(output_dir, no_sync):
+@click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+def build_plugin(output_dir, no_sync, verbose):
     """Build and package Shopware 6 plugin for release."""
     # Load environment variables
     load_env()
     try:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
+        if verbose:
+            console.print(f"[dim]→ Created output directory: {output_dir}[/]")
 
         # Check if builds/ is in .gitignore
         gitignore_path = Path('.gitignore')
@@ -37,18 +40,20 @@ def build_plugin(output_dir, no_sync):
         with console.status("[bold green]Building plugin...") as status:
             # Get information
             status.update("[bold blue]Getting git information...")
-            branch, commit = get_git_info()
+            branch, commit = get_git_info(verbose=verbose, console=console)
 
             status.update("[bold blue]Reading plugin information...")
-            plugin_name, version = get_plugin_info()
+            plugin_name, version = get_plugin_info(verbose=verbose, console=console)
 
             # Build process
             with tempfile.TemporaryDirectory() as temp_dir:
                 status.update("[bold blue]Copying plugin files...")
-                plugin_dir = copy_plugin_files(temp_dir, plugin_name)
+                if verbose:
+                    console.print(f"[dim]→ Using temporary directory: {temp_dir}[/]")
+                plugin_dir = copy_plugin_files(temp_dir, plugin_name, verbose=verbose, console=console)
 
                 status.update("[bold blue]Creating release info...")
-                release_info = create_release_info(plugin_name, branch, commit, version)
+                release_info = create_release_info(plugin_name, branch, commit, version, verbose=verbose, console=console)
                 print(release_info)
                 with open(os.path.join(plugin_dir, 'release_info.txt'), 'w') as f:
                     f.write(str(release_info))

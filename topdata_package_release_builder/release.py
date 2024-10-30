@@ -23,10 +23,14 @@ def _create_table(data):
     
     return '\n'.join(lines)
 
-def create_release_info(plugin_name, branch, commit, version):
+def create_release_info(plugin_name, branch, commit, version, verbose=False, console=None):
     """Create a plain-text release_info.txt with formatted content."""
+    if verbose and console:
+        console.print("[dim]→ Generating release info with timezone: Europe/Berlin[/]")
     now = datetime.now(pytz.timezone('Europe/Berlin')).isoformat()
 
+    if verbose and console:
+        console.print("[dim]→ Collecting release info data[/]")
     data = [
         ["Plugin", plugin_name],
         ["Version", f"v{version}"],
@@ -35,5 +39,16 @@ def create_release_info(plugin_name, branch, commit, version):
         ["Commit ID", commit]
     ]
 
-    return _create_table(data)
+    if verbose and console:
+        console.print("[dim]→ Release info data collected:[/]")
+        for key, value in data:
+            console.print(f"[dim]  • {key}: {value}[/]")
+        console.print("[dim]→ Generating formatted table[/]")
+    
+    table = _create_table(data)
+    
+    if verbose and console:
+        console.print("[dim]→ Release info table generated[/]")
+    
+    return table
 
