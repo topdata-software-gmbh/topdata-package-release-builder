@@ -10,7 +10,8 @@ import click
 from .config import load_env, get_remote_config
 from .git import get_git_info
 from .plugin import get_plugin_info, copy_plugin_files, create_archive
-from .release import create_release_info, sync_to_remote
+from .release import create_release_info
+from .remote import sync_to_remote
 
 console = Console()
 
