@@ -23,7 +23,21 @@ def get_plugin_info(verbose=False, console=None):
 def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
     """Copy plugin files to temporary directory."""
     plugin_dir = os.path.join(temp_dir, plugin_name)
-    ignored_patterns = ['.git*', 'builds', '__pycache__', '*.pyc', 'node_modules', 'tests']
+    ignored_patterns = [
+        '.git*',
+        'builds',
+        '__pycache__',
+        '*.pyc',
+        'node_modules',
+        'tests',
+        '.aider*',
+        'php-cs-fixer.*',
+        '.php-cs-fixer.*',
+        'phpstan.*',
+        'rector.*',
+        'CONVENTIONS.md',
+        'bitbucket-pipelines.yml',
+    ]
     if verbose and console:
         console.print(f"[dim]→ Creating plugin directory: {plugin_dir}[/]")
         console.print(f"[dim]→ Ignoring patterns: {', '.join(ignored_patterns)}[/]")
