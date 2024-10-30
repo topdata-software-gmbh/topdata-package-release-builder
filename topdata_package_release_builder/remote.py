@@ -18,3 +18,4 @@ def sync_to_remote(zip_path, remote_config):
     rsync_cmd.extend([zip_path, remote_config['path']])
     
     subprocess.run(rsync_cmd, check=True)
+    return remote_config['path']

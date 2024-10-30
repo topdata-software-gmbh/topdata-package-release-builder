@@ -16,9 +16,9 @@ from .remote import sync_to_remote
 console = Console()
 
 @click.command()
-@click.option('--remote-path', required=False, help='Remote path for rsync (user@host:/path)')
 @click.option('--output-dir', default='./builds', help='Local directory for built archives')
-def build_plugin(remote_path, output_dir):
+@click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
+def build_plugin(output_dir, no_sync):
     """Build and package Shopware 6 plugin for release."""
     # Load environment variables
     load_env()
@@ -58,28 +58,38 @@ def build_plugin(remote_path, output_dir):
                 zip_path = os.path.join(output_dir, zip_name)
                 create_archive(output_dir, plugin_name, version, temp_dir)
 
-                # Get remote config from environment if no explicit remote_path provided
-                remote_config = get_remote_config(plugin_name) if not remote_path else {'path': remote_path}
-                
+                # Get remote config and sync if enabled
+                sync_status = None
+                remote_config = get_remote_config(plugin_name)
                 if remote_config:
-                    status.update("[bold blue]Syncing to remote server...")
-                    sync_to_remote(zip_path, remote_config)
+                    if no_sync:
+                        sync_status = False
+                        console.print("[yellow]Remote sync is disabled by --no-sync flag[/]")
+                    else:
+                        status.update("[bold blue]Syncing to remote server...")
+                        sync_path = sync_to_remote(zip_path, remote_config)
+                        sync_status = sync_path
 
-        _show_success_message(plugin_name, version, zip_name, remote_path, output_dir)
+        _show_success_message(plugin_name, version, zip_name, output_dir, sync_status)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}", style="red")
         raise click.Abort()
 
-def _show_success_message(plugin_name, version, zip_name, remote_path, output_dir):
+def _show_success_message(plugin_name, version, zip_name, output_dir, sync_status=None):
     """Display success message after build completion."""
+    sync_message = ""
+    if sync_status is False:
+        sync_message = "\n[yellow]Remote sync was disabled[/]"
+    elif sync_status:
+        sync_message = f"\n[green]Successfully synced to remote server: {sync_status}[/]"
+
     console.print(Panel(f"""
-[bold green]Plugin successfully built and deployed![/]
+[bold green]Plugin successfully built![/]
 Plugin: {plugin_name}
 Version: v{version}
 Archive: {zip_name}
-Location: {output_dir}/{zip_name}
-Remote path: {remote_path if remote_path else 'Not provided'}
+Location: {output_dir}/{zip_name}{sync_message}
 
 [italic]Note: Built packages are stored in the 'builds/' directory.[/]
     """, title="Success"))
