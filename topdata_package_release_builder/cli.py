@@ -38,12 +38,13 @@ def get_plugin_info():
     return plugin_name, version
 
 
-def create_release_info(branch, commit, version):
+def create_release_info(plugin_name, branch, commit, version):
     """Create a plain-text release_info.txt with formatted content."""
     now = datetime.now(pytz.timezone('Europe/Berlin')).isoformat()
 
     # Define the data as a list of lists
     data = [
+        ["Plugin", plugin_name],
         ["Branch", branch],
         ["Commit ID", commit],
         ["Version", f"v{version}"],
@@ -84,7 +85,8 @@ def build_plugin(remote_path, output_dir):
 
                 # Create release info
                 status.update("[bold blue]Creating release info...")
-                release_info = create_release_info(branch, commit, version)
+                release_info = create_release_info(plugin_name, branch, commit, version)
+                print(release_info)
                 with open(os.path.join(plugin_dir, 'release_info.txt'), 'w') as f:
                     f.write(str(release_info))
 
