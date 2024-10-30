@@ -3,11 +3,25 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 
+# Get the project root directory (2 levels up from this file)
+PROJECT_ROOT = Path(__file__).parent.parent
+
 def load_env(verbose=False, console=None):
     """Load environment variables from .env file."""
-    env_path = Path('.env')
+    env_path = PROJECT_ROOT / '.env'
     if verbose and console:
-        console.print(f"[dim]→ Loading environment from: {env_path}[/]")
+        console.print(f"[dim]→ Loading environment from: {env_path.absolute()}[/]")
+        if env_path.exists():
+            console.print("[dim]→ .env file found[/]")
+            with open(env_path) as f:
+                content = f.read().strip()
+                if content:
+                    console.print("[dim]→ .env file contains configuration[/]")
+                    console.print(f"[dim]→ Number of lines: {len(content.splitlines())}[/]")
+                else:
+                    console.print("[yellow]→ Warning: .env file is empty[/]")
+        else:
+            console.print(f"[yellow]→ Warning: .env file not found at: {env_path.absolute()}[/]")
     load_dotenv(env_path)
 
 def get_remote_config(plugin_name, verbose=False, console=None):
