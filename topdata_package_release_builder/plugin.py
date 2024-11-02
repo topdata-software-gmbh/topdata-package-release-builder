@@ -18,7 +18,7 @@ def get_plugin_info(verbose=False, console=None):
         console.print(f"[dim]→ Found plugin class: {plugin_class}[/]")
         console.print(f"[dim]→ Extracted plugin name: {plugin_name}[/]")
         console.print(f"[dim]→ Found version: {version}[/]")
-    return plugin_name, version
+    return plugin_name, version, composer_data['version']  # Return original version string too
 
 def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
     """Copy plugin files to temporary directory."""
