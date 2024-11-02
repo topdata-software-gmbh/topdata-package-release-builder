@@ -100,7 +100,7 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
                 plugin_dir = copy_plugin_files(temp_dir, plugin_name, verbose=verbose, console=console)
 
                 status.update("[bold blue]Creating release info...")
-                release_info = create_release_info(plugin_name, branch, commit, version, verbose=verbose, console=console)
+                release_info = create_release_info(plugin_name, branch, commit, version, verbose=verbose, console=console, table_style="panel")
                 print(release_info)
                 with open(os.path.join(plugin_dir, 'release_info.txt'), 'w') as f:
                     f.write(str(release_info))

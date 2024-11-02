@@ -3,7 +3,7 @@ import json
 import os
 
 import requests
-from topdata_package_release_builder.release import create_release_info
+from .release import create_release_info
 from rich.console import Console
 
 def send_release_notification(
@@ -52,7 +52,7 @@ def send_release_notification(
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"```\n{create_release_info(plugin_name, branch, commit, version, verbose, console)}\n```"
+                    "text": f"```\n{create_release_info(plugin_name, branch, commit, version, verbose, console, table_style="panel")}\n```"
                 }
             }
         ]
