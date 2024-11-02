@@ -3,6 +3,7 @@ import json
 import os
 
 import requests
+from topdata_package_release_builder.release import create_release_info
 from rich.console import Console
 
 def send_release_notification(
@@ -27,31 +28,33 @@ def send_release_notification(
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": f"🚀 New Plugin Release: {plugin_name}"
+                    "text": f"🚀 New Plugin Release: {plugin_name} v{version}"
                 }
-            },
-            {
-                "type": "section",
-                "fields": [
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Version:*\nv{version}"
-                    },
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Branch:*\n{branch}"
-                    }
-                ]
             },
             # {
             #     "type": "section",
             #     "fields": [
             #         {
             #             "type": "mrkdwn",
-            #             "text": f"*Commit:*\n`{commit[:8]}`"
+            #             "text": f"*Plugin*:\n{plugin_name}"
+            #         },
+            #         {
+            #             "type": "mrkdwn",
+            #             "text": f"*Version:*\nv{version}"
+            #         },
+            #         {
+            #             "type": "mrkdwn",
+            #             "text": f"*Branch:*\n{branch}"
             #         }
             #     ]
-            # }
+            # },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"```\n{create_release_info(plugin_name, branch, commit, version, verbose, console)}\n```"
+                }
+            }
         ]
     }
 
