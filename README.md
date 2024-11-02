@@ -33,3 +33,9 @@ go to the root directory of the package you want to build and run the following 
 ```bash
 sw-build --help
 ```
+
+## TODO
+- when creating a release zip, log it somewhere (release-log-path should be part of the config file)
+- make use of .sw-zip-blacklist when creating a release zip
+  - example: https://github.com/shopware/SwagMigrationConnector/blob/master/.sw-zip-blacklist
+
