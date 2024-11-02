@@ -9,6 +9,7 @@ dependencies = [
     "pytz",
     "python-dotenv",
     "InquirerPy>=0.3.4",
+    "requests",
 ]
 
 [build-system]

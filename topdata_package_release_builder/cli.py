@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Command line interface for the Shopware Plugin Builder."""
 import os
-import sys
 from pathlib import Path
 import tempfile
 from rich.console import Console
@@ -14,15 +13,17 @@ from .git import get_git_info
 from .plugin import get_plugin_info, copy_plugin_files, create_archive
 from .release import create_release_info
 from .remote import sync_to_remote
+from .slack import send_release_notification
 from .version import VersionBump, bump_version, update_composer_version, get_major_version
 
 console = Console()
 
-@click.command()
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
 @click.option('--output-dir', default='./builds', help='Local directory for built archives')
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
+@click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
-def build_plugin(output_dir, no_sync, verbose):
+def build_plugin(output_dir, no_sync, notify_slack, verbose):
     """Build and package Shopware 6 plugin for release."""
     # Load environment variables
     load_env(verbose=verbose, console=console)
@@ -103,26 +104,47 @@ def build_plugin(output_dir, no_sync, verbose):
                         sync_path = sync_to_remote(zip_path, remote_config, verbose=verbose, console=console)
                         sync_status = sync_path
 
-        _show_success_message(plugin_name, version, zip_name, output_dir, sync_status)
+        # Send Slack notification if enabled and sync was successful
+        slack_status = None
+        if notify_slack and sync_status:
+            webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+            slack_status = send_release_notification(
+                plugin_name=plugin_name,
+                version=version,
+                branch=branch,
+                commit=commit,
+                remote_url=sync_status,  # Using the sync URL as the download link
+                webhook_url=webhook_url,
+                verbose=verbose,
+                console=console
+            )
+
+        _show_success_message(plugin_name, version, zip_name, output_dir, sync_status, slack_status)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}", style="red")
         raise click.Abort()
 
-def _show_success_message(plugin_name, version, zip_name, output_dir, sync_status=None):
+def _show_success_message(plugin_name, version, zip_name, output_dir, sync_status=None, slack_status=None):
     """Display success message after build completion."""
     sync_message = ""
     if sync_status is False:
         sync_message = "\n[yellow]Remote sync was disabled[/]"
     elif sync_status:
         sync_message = f"\n[green]Successfully synced to remote server: {sync_status}[/]"
+        
+    slack_message = ""
+    if slack_status is True:
+        slack_message = "\n[green]Successfully sent Slack notification[/]"
+    elif slack_status is False:
+        slack_message = "\n[yellow]Failed to send Slack notification[/]"
 
     console.print(Panel(f"""
 [bold green]Plugin successfully built![/]
 Plugin: {plugin_name}
 Version: v{version}
 Archive: {zip_name}
-Location: {output_dir}/{zip_name}{sync_message}
+Location: {output_dir}/{zip_name}{sync_message}{slack_message}
 
 [italic]Note: Built packages are stored in the 'builds/' directory.[/]
     """, title="Success"))
