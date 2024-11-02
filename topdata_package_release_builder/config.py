@@ -24,6 +24,7 @@ def load_env(verbose=False, console=None):
             console.print(f"[yellow]→ Warning: .env file not found at: {env_path.absolute()}[/]")
     load_dotenv(env_path)
 
+
 def get_remote_config(plugin_name, verbose=False, console=None):
     """Get remote configuration from environment variables."""
     if verbose and console:

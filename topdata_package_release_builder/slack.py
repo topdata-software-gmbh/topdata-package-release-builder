@@ -10,7 +10,7 @@ def send_release_notification(
     version: str,
     branch: str,
     commit: str,
-    remote_url: str,
+    download_url: str,
     webhook_url: str,
     verbose: bool = False,
     console: Console = None
@@ -43,28 +43,26 @@ def send_release_notification(
                     }
                 ]
             },
-            {
-                "type": "section",
-                "fields": [
-                    {
-                        "type": "mrkdwn",
-                        "text": f"*Commit:*\n`{commit[:8]}`"
-                    }
-                ]
-            }
+            # {
+            #     "type": "section",
+            #     "fields": [
+            #         {
+            #             "type": "mrkdwn",
+            #             "text": f"*Commit:*\n`{commit[:8]}`"
+            #         }
+            #     ]
+            # }
         ]
     }
 
-    if remote_url:
+    if download_url:
         message["blocks"].append({
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*Download:*\n{remote_url}"
+                "text": f"*Download:*\n{download_url}"
             }
         })
-
-    print(message)
 
     try:
         response = requests.post(

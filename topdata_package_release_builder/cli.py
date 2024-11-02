@@ -18,6 +18,24 @@ from .version import VersionBump, bump_version, update_composer_version, get_maj
 
 console = Console()
 
+
+def _get_download_url(zip_file_rsync_path: str) -> str|None:
+    downloadBaseUrl = os.getenv('DOWNLOAD_BASE_URL')
+    if not downloadBaseUrl:
+        return None
+    # example: IN: root@vps1.srv.topinfra.de:/srv/files-topinfra-de/vol/files/sw6-plugin-releases/TopdataDevelopmentHelperSW6/TopdataDevelopmentHelperSW6-v0.0.5.zip
+    # example: OUT: https://files.topinfra.de/sw6-plugin-releases/TopdataDevelopmentHelperSW6/TopdataDevelopmentHelperSW6-v0.0.5.zip
+    parts = zip_file_rsync_path.split(':')
+    if len(parts) != 2:
+        return None
+    host, path = parts
+    path_parts = path.split('/')
+    # last 2 parts are the plugin name and the zip file
+    plugin_name = path_parts[-2]
+    zip_file = path_parts[-1]
+    return f"{downloadBaseUrl}/{plugin_name}/{zip_file}"
+
+
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
 @click.option('--output-dir', default='./builds', help='Local directory for built archives')
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
@@ -94,6 +112,7 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
 
                 # Get remote config and sync if enabled
                 sync_status = None
+                download_url = None
                 remote_config = get_remote_config(plugin_name, verbose=verbose, console=console)
                 if remote_config:
                     if no_sync:
@@ -101,8 +120,9 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
                         console.print("[yellow]Remote sync is disabled by --no-sync flag[/]")
                     else:
                         status.update("[bold blue]Syncing to remote server...")
-                        sync_path = sync_to_remote(zip_path, remote_config, verbose=verbose, console=console)
-                        sync_status = sync_path
+                        zip_file_rsync_path = sync_to_remote(zip_path, remote_config, verbose=verbose, console=console)
+                        sync_status = True
+                        download_url = _get_download_url(zip_file_rsync_path)
 
         # Send Slack notification if enabled and sync was successful
         slack_status = None
@@ -113,26 +133,27 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
                 version=version,
                 branch=branch,
                 commit=commit,
-                remote_url=sync_status,  # Using the sync URL as the download link
+                download_url=download_url,  # Using the sync URL as the download link
                 webhook_url=webhook_url,
                 verbose=verbose,
                 console=console
             )
 
-        _show_success_message(plugin_name, version, zip_name, output_dir, sync_status, slack_status)
+        _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}", style="red")
         raise click.Abort()
 
-def _show_success_message(plugin_name, version, zip_name, output_dir, sync_status=None, slack_status=None):
+def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status=None):
     """Display success message after build completion."""
     sync_message = ""
-    if sync_status is False:
+    if zip_file_rsync_path:
+        sync_message = f"\n[green]Successfully synced to remote server[/]"
+        sync_message += f"\n[green]DL: {_get_download_url(zip_file_rsync_path)}[/]"
+    else:
         sync_message = "\n[yellow]Remote sync was disabled[/]"
-    elif sync_status:
-        sync_message = f"\n[green]Successfully synced to remote server: {sync_status}[/]"
-        
+
     slack_message = ""
     if slack_status is True:
         slack_message = "\n[green]Successfully sent Slack notification[/]"
