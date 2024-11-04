@@ -8,7 +8,7 @@ from rich.panel import Panel
 import click
 from InquirerPy import inquirer
 
-from .config import load_env, get_remote_config
+from .config import load_env, get_remote_config, get_release_dir
 from .git import get_git_info
 from .plugin import get_plugin_info, copy_plugin_files, create_archive
 from .release import create_release_info
@@ -37,7 +37,7 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
-@click.option('--output-dir', default='./builds', help='Local directory for built archives')
+@click.option('--output-dir', help='Override release directory (default: RELEASE_DIR from .env)')
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
 @click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
@@ -46,18 +46,16 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
     # Load environment variables
     load_env(verbose=verbose, console=console)
     try:
+        # Use RELEASE_DIR from .env if no output_dir specified
+        if not output_dir:
+            output_dir = get_release_dir(verbose=verbose, console=console)
+            if not output_dir:
+                raise click.UsageError("No output directory specified and RELEASE_DIR not set in .env")
+
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         if verbose:
-            console.print(f"[dim]→ Created output directory: {output_dir}[/]")
-
-        # Check if builds/ is in .gitignore
-        gitignore_path = Path('.gitignore')
-        if gitignore_path.exists():
-            with open(gitignore_path, 'r') as f:
-                if 'builds/' not in f.read():
-                    console.print("[yellow]Warning:[/] The 'builds/' directory is not in .gitignore. "
-                                "It's recommended to add it to prevent committing built packages.")
+            console.print(f"[dim]→ Using release directory: {output_dir}[/]")
 
         with console.status("[bold green]Building plugin...") as status:
             # Get information
@@ -170,7 +168,7 @@ Version: v{version}
 Archive: {zip_name}
 Location: {output_dir}/{zip_name}{sync_message}{slack_message}
 
-[italic]Note: Built packages are stored in the 'builds/' directory.[/]
+[italic]Note: Built packages are stored in the release directory.[/]
     """, title="Success"))
 
 def main():

@@ -25,6 +25,23 @@ def load_env(verbose=False, console=None):
     load_dotenv(env_path)
 
 
+def get_release_dir(verbose=False, console=None):
+    """Get release directory from environment variables."""
+    if verbose and console:
+        console.print("[dim]→ Reading release directory configuration[/]")
+    
+    release_dir = os.getenv('RELEASE_DIR')
+    
+    if verbose and console:
+        console.print(f"[dim]→ Found release directory: {release_dir or 'Not set'}[/]")
+    
+    if not release_dir:
+        if verbose and console:
+            console.print("[yellow]→ RELEASE_DIR not set in environment[/]")
+        return None
+    
+    return release_dir
+
 def get_remote_config(plugin_name, verbose=False, console=None):
     """Get remote configuration from environment variables."""
     if verbose and console:

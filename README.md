@@ -22,17 +22,31 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-4. test if the installation was successful:
+4. Copy the example environment file and configure it:
 ```bash
- sw-build --help
- ```
+cp .env.example .env
+```
+Edit `.env` and set at least the required `RELEASE_DIR` value.
 
-## Usage
-
-go to the root directory of the package you want to build and run the following command:
+5. Test if the installation was successful:
 ```bash
 sw-build --help
 ```
+
+## Usage
+
+1. Configure your environment:
+   - Make sure `RELEASE_DIR` is set in your `.env` file - this is where built packages will be stored
+   - Optional: Configure rsync settings for remote syncing
+   - Optional: Set up Slack notifications
+
+2. Go to the root directory of the package you want to build and run:
+```bash
+sw-build --help
+```
+
+By default, built packages will be stored in the directory specified by `RELEASE_DIR` in your `.env` file.
+You can override this with the `--output-dir` option.
 
 ## excludes files:
 - some files are hardcoded to be excluded from a release zip (search for `ignored_patterns` in the code).

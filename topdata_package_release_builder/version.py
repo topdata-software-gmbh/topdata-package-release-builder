@@ -43,7 +43,7 @@ def update_composer_version(new_version: str, verbose: bool = False, console = N
     composer_data['version'] = new_version
     
     with open('composer.json', 'w') as f:
-        json.dump(composer_data, f, indent=4)
+        json.dump(composer_data, f, indent=4, ensure_ascii=False)
 
 def get_major_version(version: str) -> int:
     """Get major version number from version string."""
