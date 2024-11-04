@@ -105,12 +105,15 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
                 with open(os.path.join(plugin_dir, 'release_info.txt'), 'w') as f:
                     f.write(str(release_info))
 
+                console.print("-------------------------------------------------------")
                 status.update("[bold blue]Creating ZIP archive...")
                 zip_name = f"{plugin_name}-v{version}.zip"
                 zip_path = os.path.join(output_dir, zip_name)
-                create_archive(output_dir, plugin_name, version, temp_dir)
+                create_archive(output_dir, plugin_name, version, temp_dir, verbose, console)
 
-                # Get remote config and sync if enabled
+
+                # ---- Get remote config and sync if enabled
+                console.print("-------------------------------------------------------")
                 sync_status = None
                 download_url = None
                 remote_config = get_remote_config(plugin_name, verbose=verbose, console=console)

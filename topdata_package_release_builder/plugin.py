@@ -2,6 +2,10 @@
 import json
 import shutil
 import os
+import zipfile
+from typing import List
+from .tree import build_ascii_directory_tree
+
 
 def get_plugin_info(verbose=False, console=None):
     """Extract plugin information from composer.json."""
@@ -61,6 +65,9 @@ def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
     shutil.copytree('.', plugin_dir, ignore=shutil.ignore_patterns(*ignored_patterns))
     if verbose and console:
         console.print(f"[dim]→ Files copied successfully[/]")
+        # show tree structure
+        console.print(build_ascii_directory_tree(plugin_dir, exclude_patterns=['.git', '__pycache__'], max_depth=2))
+
     return plugin_dir
 
 def create_archive(output_dir, plugin_name, version, temp_dir, verbose=False, console=None):

@@ -34,8 +34,11 @@ go to the root directory of the package you want to build and run the following 
 sw-build --help
 ```
 
+## excludes files:
+- some files are hardcoded to be excluded from a release zip (search for `ignored_patterns` in the code).
+- the builder makes use of .sw-zip-blacklist in the plugin folder (if found) when creating a release zip
+
+
 ## TODO
 - when creating a release zip, log it somewhere (release-log-path should be part of the config file)
-- make use of .sw-zip-blacklist when creating a release zip
-  - example: https://github.com/shopware/SwagMigrationConnector/blob/master/.sw-zip-blacklist
 
