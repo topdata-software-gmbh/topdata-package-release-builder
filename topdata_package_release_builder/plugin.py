@@ -37,7 +37,24 @@ def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
         'rector.*',
         'CONVENTIONS.md',
         'bitbucket-pipelines.yml',
+        '.sw-zip-blacklist',
     ]
+
+    # Read .sw-zip-blacklist if it exists
+    blacklist_file = '.sw-zip-blacklist'
+    if os.path.exists(blacklist_file):
+        if verbose and console:
+            console.print(f"[dim]→ Reading {blacklist_file}[/]")
+        with open(blacklist_file, 'r') as f:
+            # Add each non-empty line from the blacklist file
+            numAdded = 0
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    ignored_patterns.append(line)
+                    numAdded += 1
+            if verbose and console:
+                console.print(f"[dim]→ Added {numAdded} patterns from {blacklist_file}[/]")
     if verbose and console:
         console.print(f"[dim]→ Creating plugin directory: {plugin_dir}[/]")
         console.print(f"[dim]→ Ignoring patterns: {', '.join(ignored_patterns)}[/]")
