@@ -25,6 +25,23 @@ def load_env(verbose=False, console=None):
     load_dotenv(env_path)
 
 
+def get_manuals_dir(verbose=False, console=None):
+    """Get manuals directory from environment variables."""
+    if verbose and console:
+        console.print("[dim]→ Reading manuals directory configuration[/]")
+    
+    manuals_dir = os.getenv('MANUALS_DIR')
+    
+    if verbose and console:
+        console.print(f"[dim]→ Found manuals directory: {manuals_dir or 'Not set'}[/]")
+    
+    if not manuals_dir:
+        if verbose and console:
+            console.print("[yellow]→ MANUALS_DIR not set in environment[/]")
+        return None
+    
+    return manuals_dir
+
 def get_release_dir(verbose=False, console=None):
     """Get release directory from environment variables."""
     if verbose and console:

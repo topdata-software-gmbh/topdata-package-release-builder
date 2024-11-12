@@ -8,13 +8,14 @@ from rich.panel import Panel
 import click
 from InquirerPy import inquirer
 
-from .config import load_env, get_remote_config, get_release_dir
+from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir
 from .git import get_git_info
 from .plugin import get_plugin_info, copy_plugin_files, create_archive
 from .release import create_release_info
 from .remote import sync_to_remote
 from .slack import send_release_notification
 from .version import VersionBump, bump_version, update_composer_version, get_major_version
+from .manual import copy_manuals
 
 console = Console()
 
@@ -108,6 +109,12 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
                 zip_name = f"{plugin_name}-v{version}.zip"
                 zip_path = os.path.join(output_dir, zip_name)
                 create_archive(output_dir, plugin_name, version, temp_dir, verbose, console)
+
+                # Copy manuals if MANUALS_DIR is configured
+                manuals_dir = get_manuals_dir(verbose=verbose, console=console)
+                if manuals_dir:
+                    status.update("[bold blue]Copying manuals...")
+                    copy_manuals(plugin_name, version, manuals_dir, verbose=verbose, console=console)
 
 
                 # ---- Get remote config and sync if enabled
