@@ -19,6 +19,9 @@ source .venv/bin/activate
    
 3. Install dependencies:
 ```bash
+# pandoc for PDF generation
+pacman -Syu pandoc texlive-xetex texlive-core texlive-formatsextra texlive-latexextra
+# python dependencies
 uv pip install -e ".[dev]"
 ```
 

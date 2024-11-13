@@ -119,6 +119,7 @@ def convert_to_pdf(input_file: Path, output_file: Path, language: str) -> None:
         str(input_file),
         '-o', str(output_file),
         '--pdf-engine=xelatex',
+        '--pdf-engine-opt=-shell-escape',
         '--toc',
         '--toc-depth=3',
         '--variable', 'papersize=a4',
@@ -128,7 +129,6 @@ def convert_to_pdf(input_file: Path, output_file: Path, language: str) -> None:
         '--variable', 'mainfont=DejaVu Sans',
         '--variable', 'monofont=DejaVu Sans Mono',
         '-f', 'markdown+raw_tex',
-        '--pdf-engine-opt=-shell-escape',
     ]
 
     lang_settings = {
@@ -166,54 +166,6 @@ def convert_to_pdf(input_file: Path, output_file: Path, language: str) -> None:
 
         raise click.ClickException("PDF conversion failed")
 
-
-def check_dependencies() -> dict:
-    """Enhanced dependency checking."""
-    results = {}
-
-    try:
-        pandoc = subprocess.run(
-            ['pandoc', '--version'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        results['pandoc'] = pandoc.stdout.split('\n')[0]
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        results['pandoc'] = None
-
-    try:
-        xelatex = subprocess.run(
-            ['xelatex', '--version'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        results['xelatex'] = xelatex.stdout.split('\n')[0]
-
-        texlive_pkgs = [
-            'texlive-xetex',
-            # 'texlive-fonts-recommended',
-            # 'texlive-lang-german',
-            'texlive-formatsextra',
-            'texlive-latexextra',
-        ]
-
-        for pkg in texlive_pkgs:
-            try:
-                subprocess.run(
-                    ['dpkg', '-s', pkg],
-                    capture_output=True,
-                    check=True
-                )
-                results[pkg] = "Installed"
-            except:
-                results[pkg] = None
-
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        results['xelatex'] = None
-
-    return results
 
 
 class PathPath(click.Path):
@@ -254,21 +206,6 @@ def create_manual(
         f"Preview: [cyan]{'Yes' if preview else 'No'}[/cyan]\n"
         f"Keep temp files: [cyan]{'Yes' if keep_temp else 'No'}[/cyan]"
     ))
-
-    with console.status("[bold blue]Checking dependencies...", spinner="dots") as status:
-        deps = check_dependencies()
-        if not all(deps.values()):
-            console.print("\n[red]Missing dependencies:[/red]")
-            for dep, version in deps.items():
-                if version is None:
-                    console.print(f"  ✗ {dep} not found")
-                else:
-                    console.print(f"  ✓ {dep}: {version}")
-            #raise click.ClickException("Missing dependencies. Please install missing packages.")
-        else:
-            console.print("\n[green]Dependencies found:[/green]")
-            for dep, version in deps.items():
-                console.print(f"  ✓ {dep}: {version}")
 
     output_dir = output or manual_dir
     output_dir.mkdir(parents=True, exist_ok=True)
