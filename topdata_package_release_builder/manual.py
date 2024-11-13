@@ -1,6 +1,7 @@
 """Module for handling manual/documentation copying."""
 from pathlib import Path
 import shutil
+import subprocess
 
 def copy_manuals(plugin_name: str, version: str, manuals_dir: str, verbose: bool = False, console = None):
     """
@@ -27,8 +28,21 @@ def copy_manuals(plugin_name: str, version: str, manuals_dir: str, verbose: bool
         target_dir = Path(manuals_dir) / plugin_name / f"v{version}"
         target_dir.mkdir(parents=True, exist_ok=True)
         
-        # Copy the contents
-        shutil.copytree(source_dir, target_dir, dirs_exist_ok=True)
+        # Clean target directory if it exists
+        if target_dir.exists():
+            shutil.rmtree(target_dir)
+        
+        # Copy the contents using rsync to ensure clean copy
+        try:
+            subprocess.run(
+                ['rsync', '-a', '--delete', f"{source_dir}/", f"{target_dir}/"],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            # Fallback to shutil if rsync fails
+            shutil.copytree(source_dir, target_dir)
         if verbose and console:
             console.print(f"[blue]→ Copied manual to: {target_dir}[/]")
     except Exception as e:
