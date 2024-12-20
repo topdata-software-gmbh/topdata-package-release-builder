@@ -132,11 +132,18 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
                         sync_status = True
                         download_url = _get_download_url(zip_file_rsync_path)
 
-        # Send Slack notification if enabled and sync was successful
+        # Send Slack notification if enabled
         slack_status = None
-        if notify_slack and sync_status:
+        if notify_slack:
             webhook_url = os.getenv('SLACK_WEBHOOK_URL')
-            slack_status = send_release_notification(
+            if verbose:
+                console.print(f"[dim]→ Slack webhook URL: {'configured' if webhook_url else 'missing'}[/]")
+            if not webhook_url:
+                console.print("[yellow]Warning:[/] SLACK_WEBHOOK_URL not set in .env")
+            elif not sync_status and download_url is None:
+                console.print("[yellow]Warning:[/] Skipping Slack notification as sync was not successful")
+            else:
+                slack_status = send_release_notification(
                 plugin_name=plugin_name,
                 version=version,
                 branch=branch,

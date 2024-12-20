@@ -68,11 +68,19 @@ def send_release_notification(
         })
 
     try:
+        if verbose and console:
+            console.print(f"[dim]→ Sending Slack notification to webhook...[/]")
+            
         response = requests.post(
             webhook_url,
             json=message,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            timeout=10
         )
+        
+        if verbose and console:
+            console.print(f"[dim]→ Slack API response status: {response.status_code}[/]")
+            
         response.raise_for_status()
         
         if verbose and console:
@@ -82,4 +90,6 @@ def send_release_notification(
     except requests.exceptions.RequestException as e:
         if console:
             console.print(f"[yellow]Warning:[/] Failed to send Slack notification: {str(e)}")
+            if verbose:
+                console.print(f"[dim]→ Full error: {repr(e)}[/]")
         return False
