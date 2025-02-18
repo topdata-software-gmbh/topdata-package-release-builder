@@ -43,7 +43,13 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 def build_plugin(output_dir, no_sync, notify_slack, verbose):
-    """Build and package Shopware 6 plugin for release."""
+    """
+    Build and package Shopware 6 plugin for release.
+
+    Automatically excludes files matching patterns from:
+    - .gitignore files in each directory
+    - .sw-zip-blacklist in the plugin root
+    """
     # Load environment variables
     load_env(verbose=verbose, console=console)
     try:
