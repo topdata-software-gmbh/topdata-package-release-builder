@@ -35,6 +35,7 @@ def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
         'node_modules',
         'tests',
         '.aider*',
+        '.idea',
         'php-cs-fixer.*',
         '.php-cs-fixer.*',
         'phpstan.*',
