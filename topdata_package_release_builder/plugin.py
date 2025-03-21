@@ -34,15 +34,19 @@ def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
         '*.pyc',
         'node_modules',
         'tests',
-        '.aider*',
         '.idea',
         'php-cs-fixer.*',
         '.php-cs-fixer.*',
         'phpstan.*',
         'rector.*',
-        'CONVENTIONS.md',
         'bitbucket-pipelines.yml',
         '.sw-zip-blacklist',
+        # ---- AI stuff ----
+        '.aider*',
+        'ai_docs',
+        'CONVENTIONS.md',
+        'CONVENTIONS-*.md',
+        'CLAUDE.md',
     ]
 
     # Read .sw-zip-blacklist if it exists
