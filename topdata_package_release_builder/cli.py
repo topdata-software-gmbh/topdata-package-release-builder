@@ -9,7 +9,7 @@ import click
 from InquirerPy import inquirer
 
 from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir
-from .git import get_git_info
+from .git import get_git_info, check_git_status, stage_changes, commit_and_tag, push_changes
 from .plugin import get_plugin_info, copy_plugin_files, create_archive
 from .release import create_release_info
 from .remote import sync_to_remote
@@ -52,6 +52,19 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
     """
     # Load environment variables
     load_env(verbose=verbose, console=console)
+
+    # Check for unstaged changes early
+    if check_git_status():
+        console.print("[yellow]Found unstaged changes![/]")
+        stage_confirm = inquirer.confirm(
+            message="Would you like to stage these changes?",
+            default=True
+        ).execute()
+        if stage_confirm:
+            stage_changes()
+        else:
+            console.print("[yellow]Skipping staging unstaged changes.[/]")
+
     try:
         # Use RELEASE_DIR from .env if no output_dir specified
         if not output_dir:
@@ -96,6 +109,11 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
                 version = new_version.lstrip('v')
                 if verbose:
                     console.print(f"[dim]→ Version updated to: {new_version}[/]")
+
+                # Auto commit, tag, and push
+                commit_message = f"bump to version {new_version}"
+                commit_and_tag('composer.json', new_version, commit_message)
+                push_changes(branch, new_version)
 
             # Build process
             with tempfile.TemporaryDirectory() as temp_dir:
