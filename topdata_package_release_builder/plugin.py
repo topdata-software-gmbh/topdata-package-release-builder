@@ -44,7 +44,9 @@ def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
         # ---- AI stuff ----
         '.aider*',
         'ai_docs',
-        '.roo*'
+        '.roo*',
+        '.cursor*',
+        '.windsurf*',
         'CONVENTIONS.md',
         'CONVENTIONS-*.md',
         'CLAUDE.md',
