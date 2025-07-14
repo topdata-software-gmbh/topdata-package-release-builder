@@ -39,29 +39,40 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
 @click.option('--output-dir', help='Override release directory (default: RELEASE_DIR from .env)')
+@click.option('--source-dir', default='.', help='Specify plugin source directory (default: current directory)')
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
 @click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
-def build_plugin(output_dir, no_sync, notify_slack, verbose):
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose):
     """
     Build and package Shopware 6 plugin for release.
 
     Automatically excludes files matching patterns from:
     - .gitignore files in each directory
     - .sw-zip-blacklist in the plugin root
+
+    Options:
+    - --source-dir: Specify plugin source directory (default: current directory)
+    - --no-sync: Disable syncing to remote server
+    - --notify-slack: Send notification to Slack after successful upload
+    - --verbose: Enable verbose output
     """
     # Load environment variables
     load_env(verbose=verbose, console=console)
 
+    # Validate source directory
+    if not os.path.isdir(source_dir):
+        raise click.UsageError(f"Source directory '{source_dir}' does not exist or is not a directory")
+
     # Check for unstaged changes early
-    if check_git_status():
+    if check_git_status(source_dir=source_dir):
         console.print("[yellow]Found unstaged changes![/]")
         stage_confirm = inquirer.confirm(
             message="Would you like to stage these changes?",
             default=True
         ).execute()
         if stage_confirm:
-            stage_changes()
+            stage_changes(source_dir=source_dir)
         else:
             console.print("[yellow]Skipping staging unstaged changes.[/]")
 
@@ -80,10 +91,10 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
         with console.status("[bold green]Building plugin...") as status:
             # Get information
             status.update("[bold blue]Getting git information...")
-            branch, commit = get_git_info(verbose=verbose, console=console)
+            branch, commit = get_git_info(source_dir=source_dir, verbose=verbose, console=console)
 
             status.update("[bold blue]Reading plugin information...")
-            plugin_name, version, original_version = get_plugin_info(verbose=verbose, console=console)
+            plugin_name, version, original_version = get_plugin_info(source_dir=source_dir, verbose=verbose, console=console)
 
             # Version selection
             status.stop()
@@ -112,15 +123,15 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
 
                 # Auto commit, tag, and push
                 commit_message = f"bump to version {new_version}"
-                commit_and_tag('composer.json', new_version, commit_message)
-                push_changes(branch, new_version)
+                commit_and_tag('composer.json', new_version, commit_message, source_dir=source_dir, verbose=verbose, console=console)
+                push_changes(branch, new_version, source_dir=source_dir, verbose=verbose, console=console)
 
             # Build process
             with tempfile.TemporaryDirectory() as temp_dir:
                 status.update("[bold blue]Copying plugin files...")
                 if verbose:
                     console.print(f"[dim]→ Using temporary directory: {temp_dir}[/]")
-                plugin_dir = copy_plugin_files(temp_dir, plugin_name, verbose=verbose, console=console)
+                plugin_dir = copy_plugin_files(temp_dir, plugin_name, source_dir=source_dir, verbose=verbose, console=console)
 
                 status.update("[bold blue]Creating release info...")
                 release_info = create_release_info(plugin_name, branch, commit, version, verbose=verbose, console=console, table_style="panel")

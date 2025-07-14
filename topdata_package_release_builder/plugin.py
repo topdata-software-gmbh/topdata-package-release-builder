@@ -7,11 +7,21 @@ from typing import List
 from .tree import build_ascii_directory_tree
 
 
-def get_plugin_info(verbose=False, console=None):
-    """Extract plugin information from composer.json."""
+def get_plugin_info(source_dir='.', verbose=False, console=None):
+    """
+    Extract plugin information from composer.json.
+
+    Args:
+        source_dir (str): The directory containing the plugin source code.
+        verbose (bool): Enable verbose output.
+        console (Console): Rich console instance for output.
+
+    Returns:
+        tuple: (plugin_name, version, original_version)
+    """
     if verbose and console:
         console.print("[dim]→ Reading composer.json file[/]")
-    with open('composer.json', 'r') as f:
+    with open(os.path.join(source_dir, 'composer.json'), 'r') as f:
         composer_data = json.load(f)
 
     plugin_class = composer_data['extra']['shopware-plugin-class']
@@ -24,8 +34,20 @@ def get_plugin_info(verbose=False, console=None):
         console.print(f"[dim]→ Found version: {version}[/]")
     return plugin_name, version, composer_data['version']  # Return original version string too
 
-def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
-    """Copy plugin files to temporary directory."""
+def copy_plugin_files(temp_dir, plugin_name, source_dir='.', verbose=False, console=None):
+    """
+    Copy plugin files to temporary directory.
+
+    Args:
+        temp_dir (str): The temporary directory to copy files to.
+        plugin_name (str): The name of the plugin.
+        source_dir (str): The directory containing the plugin source code.
+        verbose (bool): Enable verbose output.
+        console (Console): Rich console instance for output.
+
+    Returns:
+        str: Path to the copied plugin directory.
+    """
     plugin_dir = os.path.join(temp_dir, plugin_name)
     ignored_patterns = [
         '.git*',
@@ -53,7 +75,7 @@ def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
     ]
 
     # Read .sw-zip-blacklist if it exists
-    blacklist_file = '.sw-zip-blacklist'
+    blacklist_file = os.path.join(source_dir, '.sw-zip-blacklist')
     if os.path.exists(blacklist_file):
         if verbose and console:
             console.print(f"[dim]→ Reading {blacklist_file}[/]")
@@ -70,7 +92,7 @@ def copy_plugin_files(temp_dir, plugin_name, verbose=False, console=None):
     if verbose and console:
         console.print(f"[dim]→ Creating plugin directory: {plugin_dir}[/]")
         console.print(f"[dim]→ Ignoring patterns: {', '.join(ignored_patterns)}[/]")
-    shutil.copytree('.', plugin_dir, ignore=shutil.ignore_patterns(*ignored_patterns))
+    shutil.copytree(source_dir, plugin_dir, ignore=shutil.ignore_patterns(*ignored_patterns))
     if verbose and console:
         console.print(f"[dim]→ Files copied successfully[/]")
         # show tree structure

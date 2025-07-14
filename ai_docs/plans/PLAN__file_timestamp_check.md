@@ -1,10 +1,10 @@
 # Implementation Plan: File Timestamp Verification Before Package Build
 
 ## Objective
-Add a pre-build check to ensure compiled JavaScript files in `dist/` are newer than their source files before proceeding with version bumping and packaging.
+Add a pre-build check to ensure compiled JavaScript and CSS files in `dist/` are newer than the newest source files of their respective types before proceeding with version bumping and packaging.
 
 ## Problem Statement
-Currently, the build process doesn't verify if compiled files are up-to-date with their source files. This can lead to packaging outdated code, causing runtime errors in production.
+The current 1:1 file mapping approach is inefficient and doesn't account for complex build processes where multiple source files contribute to a single compiled output. We need a more robust solution that compares timestamps by file type using the plugin root directory.
 
 ## Solution Overview
 ```mermaid
@@ -17,6 +17,21 @@ graph TD
     F --> G[Exit with error]
     E --> H[Copy files]
     H --> I[Create archive]
+    
+    subgraph File timestamp verification
+        C1[Get plugin root directory]
+        C2[Find newest ts/js in src]
+        C3[Find newest scss/css in src]
+        C4[Get newest js in dist]
+        C5[Get newest css in dist]
+        C6[Compare source vs compiled]
+        C --> C1 --> C2 --> C6
+        C1 --> C3 --> C6
+        C1 --> C4 --> C6
+        C1 --> C5 --> C6
+        C6 -->|Newer source| F
+        C6 -->|Compiled current| D
+    end
 ```
 
 ## Implementation Details
@@ -24,47 +39,54 @@ graph TD
 ### 1. Verification Function (plugin.py)
 ```python
 def verify_compiled_files(verbose=False, console=None):
-    """Verify compiled files are newer than source files."""
-    compiled_dir = 'dist'
+    """Verify compiled files are newer than newest source files by type"""
+    # Use current working directory as plugin root
+    plugin_root = os.getcwd()
+    src_dir = os.path.join(plugin_root, 'src')
+    dist_dir = os.path.join(plugin_root, 'dist')
     
-    if not os.path.exists(compiled_dir):
-        if verbose and console:
-            console.print(f"[yellow]Warning:[/] Compiled directory '{compiled_dir}' not found")
-        return True
-
-    outdated_files = []
-    for root, _, files in os.walk(compiled_dir):
-        for file in files:
-            if file.endswith('.js'):
-                compiled_path = os.path.join(root, file)
-                compiled_mtime = os.path.getmtime(compiled_path)
-                
-                # Find corresponding source file
-                source_path = compiled_path.replace(compiled_dir, 'src').replace('.js', '.ts')
-                if not os.path.exists(source_path):
-                    source_path = source_path.replace('.ts', '.js')
-                    if not os.path.exists(source_path):
-                        continue
-                
-                if os.path.getmtime(source_path) > compiled_mtime:
-                    outdated_files.append({
-                        'compiled': compiled_path,
-                        'source': source_path,
-                        'compiled_mtime': compiled_mtime,
-                        'source_mtime': os.path.getmtime(source_path)
-                    })
+    # Get newest source file timestamps
+    js_sources = get_newest_mtime(src_dir, ['.ts', '.js'])
+    css_sources = get_newest_mtime(src_dir, ['.scss', '.css'])
     
-    if outdated_files:
+    # Get compiled file timestamps
+    js_compiled = get_newest_mtime(dist_dir, ['.js'])
+    css_compiled = get_newest_mtime(dist_dir, ['.css'])
+    
+    # Compare timestamps
+    errors = []
+    if js_sources > js_compiled:
+        errors.append(f"JavaScript: Source ({js_sources}) > Compiled ({js_compiled})")
+    if css_sources > css_compiled:
+        errors.append(f"CSS: Source ({css_sources}) > Compiled ({css_compiled})")
+    
+    if errors:
         if console:
             console.print("[bold red]Error:[/] Compiled files are outdated:")
-            for file in outdated_files:
-                console.print(f"- {file['compiled']} (compiled: {file['compiled_mtime']})")
-                console.print(f"  is older than {file['source']} (modified: {file['source_mtime']})")
+            for error in errors:
+                console.print(f"- {error}")
+            console.print(f"[bold]Source directory:[/] {src_dir}")
+            console.print(f"[bold]Compiled directory:[/] {dist_dir}")
         return False
     return True
+
+def get_newest_mtime(directory, extensions):
+    """Get newest modification time for files with given extensions"""
+    if not os.path.exists(directory):
+        return 0
+        
+    newest = 0
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if any(file.endswith(ext) for ext in extensions):
+                path = os.path.join(root, file)
+                mtime = os.path.getmtime(path)
+                if mtime > newest:
+                    newest = mtime
+    return newest
 ```
 
-### 2. CLI Integration (cli.py)
+### 2. CLI Integration (cli.py) - Unchanged
 ```python
 # After git status check (line 66)
 status.update("[bold blue]Verifying compiled files...")
@@ -83,19 +105,20 @@ choices = [ ... ]
 If outdated files are found:
 ```
 [bold red]Error:[/] Compiled files are outdated:
-- dist/main.js (compiled: 1720980000)
-  is older than src/main.ts (modified: 1720983600)
-- dist/utils.js (compiled: 1720976400)
-  is older than src/utils.ts (modified: 1720987200)
+- JavaScript: Source (1720983600) > Compiled (1720980000)
+- CSS: Source (1720987200) > Compiled (1720976400)
+[bold]Source directory:[/] /topdata/topdata-package-release-builder/src
+[bold]Compiled directory:[/] /topdata/topdata-package-release-builder/dist
 [bold red]Build aborted due to outdated compiled files[/]
 ```
 
 ## Benefits
-1. Prevents version bumps when builds would fail due to outdated files
-2. Avoids unnecessary commits and tags for failed builds
-3. Maintains clean version history
-4. Provides early feedback to developers
+1. Uses plugin root directory consistently with build process
+2. More efficient than 1:1 file checks
+3. Handles complex build processes with multiple source files
+4. Prevents version bumps when builds would fail due to outdated files
 
 ## Next Steps
 1. Implement the solution in code mode
-2. Test with both valid and outdated file scenarios
+2. Test with various timestamp scenarios
+3. Update documentation to reflect new approach
