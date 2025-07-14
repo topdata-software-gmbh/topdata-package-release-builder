@@ -19,7 +19,7 @@ graph TD
     H --> I[Create archive]
     
     subgraph File timestamp verification
-        C1[Get plugin root directory]
+        C1[Get plugin root from source_dir]
         C2[Find newest ts/js in src]
         C3[Find newest scss/css in src]
         C4[Get newest js in dist]
@@ -38,12 +38,11 @@ graph TD
 
 ### 1. Verification Function (plugin.py)
 ```python
-def verify_compiled_files(verbose=False, console=None):
+def verify_compiled_files(source_dir, verbose=False, console=None):
     """Verify compiled files are newer than newest source files by type"""
-    # Use current working directory as plugin root
-    plugin_root = os.getcwd()
-    src_dir = os.path.join(plugin_root, 'src')
-    dist_dir = os.path.join(plugin_root, 'dist')
+    # Use provided source_dir as plugin root
+    src_dir = os.path.join(source_dir, 'src')
+    dist_dir = os.path.join(source_dir, 'dist')
     
     # Get newest source file timestamps
     js_sources = get_newest_mtime(src_dir, ['.ts', '.js'])
@@ -86,11 +85,11 @@ def get_newest_mtime(directory, extensions):
     return newest
 ```
 
-### 2. CLI Integration (cli.py) - Unchanged
+### 2. CLI Integration (cli.py)
 ```python
 # After git status check (line 66)
 status.update("[bold blue]Verifying compiled files...")
-if not verify_compiled_files(verbose=verbose, console=console):
+if not verify_compiled_files(source_dir, verbose=verbose, console=console):
     console.print("[bold red]Build aborted due to outdated compiled files[/]")
     exit(1)
 
@@ -107,8 +106,8 @@ If outdated files are found:
 [bold red]Error:[/] Compiled files are outdated:
 - JavaScript: Source (1720983600) > Compiled (1720980000)
 - CSS: Source (1720987200) > Compiled (1720976400)
-[bold]Source directory:[/] /topdata/topdata-package-release-builder/src
-[bold]Compiled directory:[/] /topdata/topdata-package-release-builder/dist
+[bold]Source directory:[/] /path/to/plugin/src
+[bold]Compiled directory:[/] /path/to/plugin/dist
 [bold red]Build aborted due to outdated compiled files[/]
 ```
 

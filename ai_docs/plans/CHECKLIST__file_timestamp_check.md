@@ -4,14 +4,14 @@
 
 - [ ] **1. Implement verify_compiled_files function in plugin.py**
   - [ ] Create `get_newest_mtime` helper function
-  - [ ] Use `os.getcwd()` for plugin root directory
+  - [ ] Use `source_dir` parameter for plugin root directory
   - [ ] Implement type-based timestamp comparison logic
   - [ ] Add error reporting for JS and CSS separately
   - [ ] Handle edge cases (empty directories, missing files)
 
 - [ ] **2. Integration of the function call in cli.py**
   - [ ] Import `verify_compiled_files` function in cli.py
-  - [ ] Add verification call after git status check
+  - [ ] Add verification call after git status check, passing `source_dir`
   - [ ] Add status update message "Verifying compiled files..."
   - [ ] Implement error handling and graceful exit on failure
 
@@ -29,7 +29,7 @@
   - [ ] **Test 6: No source files**
     - [ ] Verify no errors when no source files exist
   - [ ] **Test 7: Directory resolution**
-    - [ ] Verify paths resolve correctly to plugin root
+    - [ ] Verify paths resolve correctly to provided `source_dir`
 
 - [ ] **4. Documentation updates**
   - [ ] Update README.md with new verification approach
@@ -41,7 +41,7 @@
 - [ ] Build aborts only when source files are newer
 - [ ] Handles cases with no source/compiled files
 - [ ] Follows project conventions and style
-- [ ] Uses correct plugin root directory (os.getcwd())
+- [ ] Uses correct plugin root directory (source_dir parameter)
 
 ## Completion Notes
 This checklist tracks the implementation of type-based file timestamp verification using the plugin root directory to prevent packaging outdated compiled code.
