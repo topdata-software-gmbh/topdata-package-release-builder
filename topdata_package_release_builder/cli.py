@@ -10,7 +10,12 @@ from InquirerPy import inquirer
 
 from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir
 from .git import get_git_info, check_git_status, stage_changes, commit_and_tag, push_changes
-from .plugin import get_plugin_info, copy_plugin_files, create_archive
+from .plugin import (
+    get_plugin_info,
+    copy_plugin_files,
+    create_archive,
+    verify_compiled_files,
+)
 from .release import create_release_info
 from .remote import sync_to_remote
 from .slack import send_release_notification
@@ -92,6 +97,14 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose):
             # Get information
             status.update("[bold blue]Getting git information...")
             branch, commit = get_git_info(source_dir=source_dir, verbose=verbose, console=console)
+
+            # ------------------------------------------------------------------
+            # Verify timestamps of compiled assets
+            # ------------------------------------------------------------------
+            status.update("[bold blue]Verifying compiled files...")
+            if not verify_compiled_files(source_dir, verbose=verbose, console=console):
+                console.print("[bold red]Build aborted due to outdated compiled files[/]")
+                raise click.Abort()
 
             status.update("[bold blue]Reading plugin information...")
             plugin_name, version, original_version = get_plugin_info(source_dir=source_dir, verbose=verbose, console=console)

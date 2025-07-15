@@ -2,18 +2,18 @@
 
 ## Implementation Tasks
 
-- [ ] **1. Implement verify_compiled_files function in plugin.py**
-  - [ ] Create `get_newest_mtime` helper function
+- [x] **1. Implement verify_compiled_files function in plugin.py**
+  - [x] Create `get_newest_mtime` helper function
   - [ ] Use `source_dir` parameter for plugin root directory
-  - [ ] Implement type-based timestamp comparison logic
-  - [ ] Add error reporting for JS and CSS separately
-  - [ ] Handle edge cases (empty directories, missing files)
+  - [x] Implement type-based timestamp comparison logic
+  - [x] Add error reporting for JS and CSS separately
+  - [x] Handle edge cases (empty directories, missing files)
 
-- [ ] **2. Integration of the function call in cli.py**
-  - [ ] Import `verify_compiled_files` function in cli.py
-  - [ ] Add verification call after git status check, passing `source_dir`
-  - [ ] Add status update message "Verifying compiled files..."
-  - [ ] Implement error handling and graceful exit on failure
+- [x] **2. Integration of the function call in cli.py**
+  - [x] Import `verify_compiled_files` function in cli.py
+  - [x] Add verification call after git status check, passing `source_dir`
+  - [x] Add status update message "Verifying compiled files..."
+  - [x] Implement error handling and graceful exit on failure
 
 - [ ] **3. Testing scenarios**
   - [ ] **Test 1: Up-to-date files**
