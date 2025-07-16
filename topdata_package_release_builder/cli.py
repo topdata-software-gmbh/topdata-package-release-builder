@@ -48,7 +48,8 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
 @click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
-def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose):
+@click.option('--debug', is_flag=True, help='Enable debug output for timestamp verification')
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug):
     """
     Build and package Shopware 6 plugin for release.
 
@@ -102,7 +103,15 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose):
             # Verify timestamps of compiled assets
             # ------------------------------------------------------------------
             status.update("[bold blue]Verifying compiled files...")
-            if not verify_compiled_files(source_dir, verbose=verbose, console=console):
+            from .config import SRC_PATH, DIST_PATH
+            if not verify_compiled_files(
+                source_dir,
+                src_path=SRC_PATH,
+                dist_path=DIST_PATH,
+                verbose=verbose,
+                debug=debug,
+                console=console,
+            ):
                 console.print("[bold red]Build aborted due to outdated compiled files[/]")
                 raise click.Abort()
 

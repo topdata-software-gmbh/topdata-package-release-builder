@@ -112,7 +112,7 @@ def copy_plugin_files(temp_dir, plugin_name, source_dir='.', verbose=False, cons
 # Timestamp verification helpers
 # ---------------------------------------------------------------------------
 
-def get_newest_mtime(directory: str, extensions: Iterable[str]) -> float:
+def get_newest_mtime(directory: str, extensions: Iterable[str]) -> tuple[float, str, int]:
     """Return the newest *modification* timestamp found in *directory*.
 
     Args:
@@ -129,12 +129,16 @@ def get_newest_mtime(directory: str, extensions: Iterable[str]) -> float:
         without special-casing *None*.
     """
     if not os.path.exists(directory):
-        return 0
+        # Directory does not exist – return neutral tuple so that callers can still compare timestamps
+        return 0, "", 0
 
     newest: float = 0
+    newest_file: str = ""
+    file_count: int = 0
     for root, _dirs, files in os.walk(directory):
         for file_name in files:
             if any(file_name.endswith(ext) for ext in extensions):
+                file_count += 1
                 path = os.path.join(root, file_name)
                 try:
                     mtime = os.path.getmtime(path)
@@ -144,10 +148,19 @@ def get_newest_mtime(directory: str, extensions: Iterable[str]) -> float:
                     continue
                 if mtime > newest:
                     newest = mtime
-    return newest
+                    newest_file = path
+    return newest, newest_file, file_count
 
 
-def verify_compiled_files(source_dir: str = '.', *, verbose: bool = False, console=None) -> bool:
+def verify_compiled_files(
+    source_dir: str = '.',
+    *,
+    src_path: str = 'src/Resources/app/storefront/src',
+    dist_path: str = 'src/Resources/app/storefront/dist',
+    verbose: bool = False,
+    debug: bool = False,
+    console=None,
+) -> bool:
     """Verify that the compiled assets in *dist/* are newer than sources in *src/*.
 
     The check is *type-based* – we do **not** attempt to map individual source
@@ -173,28 +186,58 @@ def verify_compiled_files(source_dir: str = '.', *, verbose: bool = False, conso
         ``True`` if **all** compiled timestamps are newer or equal to the
         newest source timestamps; ``False`` otherwise.
     """
-    src_dir = os.path.join(source_dir, 'src/Resources/app/storefront/src')
-    dist_dir = os.path.join(source_dir, './src/Resources/app/storefront/dist')
+    src_dir = os.path.join(source_dir, src_path)
+    dist_dir = os.path.join(source_dir, dist_path)
 
-    # Collect newest timestamps by *type*.
-    js_sources = get_newest_mtime(src_dir, ('.ts', '.js'))
-    css_sources = get_newest_mtime(src_dir, ('.scss', '.css'))
-    js_compiled = get_newest_mtime(dist_dir, ('.js',))
-    css_compiled = get_newest_mtime(dist_dir, ('.css',))
+    # Collect newest timestamps (plus example files and counts).
+    js_sources, js_source_file, js_source_count = get_newest_mtime(src_dir, ('.ts', '.js'))
+    css_sources, css_source_file, css_source_count = get_newest_mtime(src_dir, ('.scss', '.css'))
+    js_compiled, js_compiled_file, js_compiled_count = get_newest_mtime(dist_dir, ('.js',))
+    css_compiled, css_compiled_file, css_compiled_count = get_newest_mtime(dist_dir, ('.css',))
 
+    # ------------------------------------------------------------------
+    # Compare timestamps
+    # ------------------------------------------------------------------
     errors: list[str] = []
-    if js_sources > js_compiled:
-        errors.append(f"JavaScript: Source ({js_sources}) > Compiled ({js_compiled})")
-    if css_sources > css_compiled:
-        errors.append(f"CSS: Source ({css_sources}) > Compiled ({css_compiled})")
+    # Only perform timestamp comparison if both source and compiled files of a given type exist.
+    # This handles the valid case where a plugin provides source files (e.g., SCSS for variables)
+    # but does not compile them into its own dist/ folder.
+    if js_source_count > 0 and js_compiled_count > 0 and js_sources > js_compiled:
+        errors.append(
+            f"JavaScript: Source ({time.ctime(js_sources) if js_sources else 'N/A'}) > "
+            f"Compiled ({time.ctime(js_compiled) if js_compiled else 'N/A'})"
+        )
+
+    if css_source_count > 0 and css_compiled_count > 0 and css_sources > css_compiled:
+        errors.append(
+            f"CSS: Source ({time.ctime(css_sources) if css_sources else 'N/A'}) > "
+            f"Compiled ({time.ctime(css_compiled) if css_compiled else 'N/A'})"
+        )
 
     if errors:
         if console:
-            console.print("[bold red]Error:[/] Compiled files are outdated:")
+            console.print("[bold red]Error: Compiled files are outdated[/]")
             for err in errors:
                 console.print(f"- {err}")
-            console.print(f"[bold]Source directory:[/] {src_dir}")
-            console.print(f"[bold]Compiled directory:[/] {dist_dir}")
+
+            # Overview statistics
+            console.print(f"\n[bold]Source directory:[/] {src_dir} "
+                          f"({js_source_count} JS/TS, {css_source_count} CSS/SCSS files)")
+            console.print(f"[bold]Compiled directory:[/] {dist_dir} "
+                          f"({js_compiled_count} JS, {css_compiled_count} CSS files)")
+
+            if debug:
+                console.print("\n[bold]Specific files causing issues:[/]")
+                if js_source_count > 0 and js_compiled_count > 0 and js_sources > js_compiled:
+                    console.print(
+                        f"- JS: {js_source_file or 'unknown'} ({time.ctime(js_sources)})\n"
+                        f"       vs {js_compiled_file or 'unknown'} ({time.ctime(js_compiled) if js_compiled else 'N/A'})"
+                    )
+                if css_source_count > 0 and css_compiled_count > 0 and css_sources > css_compiled:
+                    console.print(
+                        f"- CSS: {css_source_file or 'unknown'} ({time.ctime(css_sources)})\n"
+                        f"        vs {css_compiled_file or 'unknown'} ({time.ctime(css_compiled) if css_compiled else 'N/A'})"
+                    )
         return False
 
     if verbose and console:
