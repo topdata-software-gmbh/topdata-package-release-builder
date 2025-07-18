@@ -4,58 +4,58 @@ This checklist tracks the implementation of the `--with-foundation` flag to crea
 
 ## Phase 1: Configuration and CLI Setup
 
--   [ ] **`.env.example`:**
-    -   [ ] Add `FOUNDATION_PLUGIN_PATH` variable with a placeholder path.
+-   [x] **`.env.example`:**
+    -   [x] Add `FOUNDATION_PLUGIN_PATH` variable with a placeholder path.
 -   [ ] **`topdata_package_release_builder/cli.py`:**
-    -   [ ] Add `@click.option('--with-foundation', ...)` to the `build_plugin` command.
-    -   [ ] Add `with_foundation` parameter to the `build_plugin` function signature.
-    -   [ ] Add logic after `load_env()` to get `FOUNDATION_PLUGIN_PATH` from `os.getenv()`.
-    -   [ ] Add validation to ensure the path exists and is a directory if `with_foundation` is `True`.
-    -   [ ] Raise a `click.UsageError` if the path is invalid.
-    -   [ ] Add a verbose log message to print the `foundation_plugin_path` when found.
+    -   [x] Add `@click.option('--with-foundation', ...)` to the `build_plugin` command.
+    -   [x] Add `with_foundation` parameter to the `build_plugin` function signature.
+    -   [x] Add logic after `load_env()` to get `FOUNDATION_PLUGIN_PATH` from `os.getenv()`.
+    -   [x] Add validation to ensure the path exists and is a directory if `with_foundation` is `True`.
+    -   [x] Raise a `click.UsageError` if the path is invalid.
+    -   [x] Add a verbose log message to print the `foundation_plugin_path` when found.
 
 ## Phase 2: Core Injection Logic
 
 -   [ ] **Create New File:**
-    -   [ ] Create the file `topdata_package_release_builder/foundation_injector.py`.
--   [ ] **`foundation_injector.py` - Implement `inject_foundation_code()` function:**
-    -   [ ] Define the `DIRECTORIES_TO_INJECT` constant with the correct list of directories.
-    -   [ ] The function accepts `target_plugin_build_dir`, `foundation_plugin_path`, and `console`.
-    -   [ ] **Read `composer.json`:**
-        -   [ ] Construct the path to `composer.json` in the target build directory.
-        -   [ ] Load the `composer.json` file as a Python dictionary.
-    -   [ ] **Modify `composer.json` (in memory):**
-        -   [ ] Check for and **remove** the `topdata/topdata-foundation-sw6` key from the `require` section.
-        -   [ ] Extract the base namespace (e.g., `Topdata\TopdataConnectorSW6`) from the `shopware-plugin-class` entry.
-        -   [ ] Add the new PSR-4 autoload rule for `src/Foundation/`.
-    -   [ ] **File Operations:**
-        -   [ ] Create the target directory: `src/Foundation/`.
-        -   [ ] Loop through `DIRECTORIES_TO_INJECT`.
-        -   [ ] For each directory, copy it from the foundation plugin's source to the target's `src/Foundation/` directory.
-        -   [ ] Handle cases where a source directory might not exist.
-    -   [ ] **Namespace Rewriting:**
-        -   [ ] Call the `rewrite_namespaces_in_dir()` helper function after copying files.
-    -   [ ] **Write `composer.json`:**
-        -   [ ] Write the modified dictionary back to the `composer.json` file in the build directory.
-        -   [ ] Ensure pretty-printing (indent=4) and a trailing newline.
-    -   [ ] Add `rich` console output for each major step (e.g., "Removed dependency", "Copied directory", "Rewriting namespaces").
--   [ ] **`foundation_injector.py` - Implement `rewrite_namespaces_in_dir()` helper function:**
-    -   [ ] The function accepts `directory`, `old_base`, and `new_base`.
-    -   [ ] Use `Path.glob('**/*.php')` to find all PHP files recursively.
-    -   [ ] For each file, read its content.
-    -   [ ] Use `re.sub()` or `string.replace()` to replace all occurrences of `Topdata\TopdataFoundationSW6` with the new base namespace.
-    -   [ ] Write the modified content back to the file only if changes were made.
-    -   [ ] Return the total count of modified files.
+    -   [x] Create the file `topdata_package_release_builder/foundation_injector.py`.
+-   [x] **`foundation_injector.py` - Implement `inject_foundation_code()` function:**
+    -   [x] Define the `DIRECTORIES_TO_INJECT` constant with the correct list of directories.
+    -   [x] The function accepts `target_plugin_build_dir`, `foundation_plugin_path`, and `console`.
+    -   [x] **Read `composer.json`:**
+        -   [x] Construct the path to `composer.json` in the target build directory.
+        -   [x] Load the `composer.json` file as a Python dictionary.
+    -   [x] **Modify `composer.json` (in memory):**
+        -   [x] Check for and **remove** the `topdata/topdata-foundation-sw6` key from the `require` section.
+        -   [x] Extract the base namespace (e.g., `Topdata\\TopdataConnectorSW6`) from the `shopware-plugin-class` entry.
+        -   [x] Add the new PSR-4 autoload rule for `src/Foundation/`.
+    -   [x] **File Operations:**
+        -   [x] Create the target directory: `src/Foundation/`.
+        -   [x] Loop through `DIRECTORIES_TO_INJECT`.
+        -   [x] For each directory, copy it from the foundation plugin's source to the target's `src/Foundation/` directory.
+        -   [x] Handle cases where a source directory might not exist.
+    -   [x] **Namespace Rewriting:**
+        -   [x] Call the `rewrite_namespaces_in_dir()` helper function after copying files.
+    -   [x] **Write `composer.json`:**
+        -   [x] Write the modified dictionary back to the `composer.json` file in the build directory.
+        -   [x] Ensure pretty-printing (indent=4) and a trailing newline.
+    -   [x] Add `rich` console output for each major step (e.g., "Removed dependency", "Copied directory", "Rewriting namespaces").
+-   [x] **`foundation_injector.py` - Implement `rewrite_namespaces_in_dir()` helper function:**
+    -   [x] The function accepts `directory`, `old_base`, and `new_base`.
+    -   [x] Use `Path.glob('**/*.php')` to find all PHP files recursively.
+    -   [x] For each file, read its content.
+    -   [x] Use `re.sub()` or `string.replace()` to replace all occurrences of `Topdata\\TopdataFoundationSW6` with the new base namespace.
+    -   [x] Write the modified content back to the file only if changes were made.
+    -   [x] Return the total count of modified files.
 
 ## Phase 3: Integration into Build Workflow
 
 -   [ ] **`topdata_package_release_builder/cli.py`:**
-    -   [ ] Add the import statement: `from .foundation_injector import inject_foundation_code`.
-    -   [ ] Inside the `build_plugin` function's `try...with tempfile.TemporaryDirectory()` block:
-        -   [ ] Locate the line immediately after `plugin_dir = copy_plugin_files(...)`.
-        -   [ ] Add a conditional block: `if with_foundation:`.
-        -   [ ] Inside the block, call `inject_foundation_code(plugin_dir, foundation_plugin_path, console=console)`.
-        -   [ ] Update the `rich` status message before the call (e.g., `status.update("[bold blue]Injecting foundation code...")`).
+    -   [x] Add the import statement: `from .foundation_injector import inject_foundation_code`.
+    -   [x] Inside the `build_plugin` function's `try...with tempfile.TemporaryDirectory()` block:
+        -   [x] Locate the line immediately after `plugin_dir = copy_plugin_files(...)`.
+        -   [x] Add a conditional block: `if with_foundation:`.
+        -   [x] Inside the block, call `inject_foundation_code(plugin_dir, foundation_plugin_path, console=console)`.
+        -   [x] Update the `rich` status message before the call (e.g., `status.update("[bold blue]Injecting foundation code...")`).
 
 ## Phase 4: Verification and Documentation
 

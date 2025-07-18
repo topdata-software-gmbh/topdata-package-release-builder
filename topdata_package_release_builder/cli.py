@@ -48,8 +48,9 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
 @click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
+@click.option('--with-foundation', is_flag=True, help='Inject TopdataFoundationSW6 code into the plugin package.')
 @click.option('--debug', is_flag=True, help='Enable debug output for timestamp verification')
-def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug):
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation):
     """
     Build and package Shopware 6 plugin for release.
 
@@ -65,6 +66,18 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug):
     """
     # Load environment variables
     load_env(verbose=verbose, console=console)
+
+    # Validate foundation plugin path if injection is requested
+    foundation_plugin_path = None
+    if with_foundation:
+        foundation_plugin_path = os.getenv('FOUNDATION_PLUGIN_PATH')
+        if not foundation_plugin_path or not os.path.isdir(foundation_plugin_path):
+            raise click.UsageError(
+                "--with-foundation flag was used, but FOUNDATION_PLUGIN_PATH is not set correctly in .env\n"
+                f"Path configured: {foundation_plugin_path}"
+            )
+        if verbose:
+            console.print(f"[dim]→ Foundation plugin path: {foundation_plugin_path}[/dim]")
 
     # Validate source directory
     if not os.path.isdir(source_dir):
@@ -154,6 +167,13 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug):
                 if verbose:
                     console.print(f"[dim]→ Using temporary directory: {temp_dir}[/]")
                 plugin_dir = copy_plugin_files(temp_dir, plugin_name, source_dir=source_dir, verbose=verbose, console=console)
+
+                # --- INJECTION STEP ---
+                if with_foundation:
+                    status.update("[bold blue]Injecting foundation code...")
+                    from .foundation_injector import inject_foundation_code  # local import to avoid costs when not used
+                    inject_foundation_code(plugin_dir, foundation_plugin_path, console=console)
+                # --- END INJECTION STEP ---
 
                 status.update("[bold blue]Creating release info...")
                 release_info = create_release_info(plugin_name, branch, commit, version, verbose=verbose, console=console, table_style="panel")
