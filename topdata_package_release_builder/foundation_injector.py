@@ -1,3 +1,5 @@
+# File: topdata_package_release_builder/foundation_injector.py
+
 """Foundation plugin injection utilities.
 
 This module provides the :func:`inject_foundation_code` helper that copies the
@@ -10,8 +12,9 @@ The process works as follows:
     and to remove the *external* Composer dependency.
 2.  Copy a curated subset of directories from the Foundation plugin into
     ``src/Foundation`` of the target.
-3.  Re-write PHP namespaces so they live beneath ``<Target>\\Foundation``.
-4.  Update ``composer.json`` so the new namespace is autoloaded.
+3.  Re-write PHP namespaces in the copied files so they live beneath ``<Target>\\Foundation``.
+4.  Re-write PHP namespaces in the original plugin files to update all references.
+5.  Update ``composer.json`` so the new namespace is autoloaded.
 
 All steps are accompanied by *Rich* console output so the user can follow what
 is happening.
@@ -142,6 +145,19 @@ def inject_foundation_code(
 
     if console:
         console.print(f"[dim]→ Rewrote namespaces in {files_rewritten} files.[/dim]")
+
+    # ------------------------------------------------------------------
+    # 5. Re-write namespaces in the *main plugin* to update references.
+    #    This is the crucial step to fix `use` and `extends` statements.
+    # ------------------------------------------------------------------
+    if console:
+        console.print(f"[dim]→ Updating references in the main plugin source...[/dim]")
+
+    # Pass the entire plugin build directory to the rewrite function
+    files_rewritten_in_target = rewrite_namespaces_in_dir(target_plugin_build_dir, OLD_NAMESPACE_BASE, new_namespace_base)
+
+    if console:
+        console.print(f"[dim]→ Updated references in {files_rewritten_in_target} main plugin files.[/dim]")
         console.print("[green]✓ Foundation code injected and composer.json updated.[/green]")
 
 
