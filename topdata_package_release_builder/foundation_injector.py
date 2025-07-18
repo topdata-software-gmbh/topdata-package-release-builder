@@ -14,7 +14,8 @@ The process works as follows:
     ``src/Foundation`` of the target.
 3.  Re-write PHP namespaces in the copied files so they live beneath ``<Target>\\Foundation``.
 4.  Re-write PHP namespaces in the original plugin files to update all references.
-5.  Update ``composer.json`` so the new namespace is autoloaded.
+5.  Inject service definitions from the foundation plugin's services.xml into the target's services.xml.
+6.  Update ``composer.json`` so the new namespace is autoloaded.
 
 All steps are accompanied by *Rich* console output so the user can follow what
 is happening.
@@ -27,6 +28,7 @@ import re
 import shutil
 from pathlib import Path
 from typing import List, Optional
+from xml.dom import minidom
 
 # ---------------------------------------------------------------------------
 # Public helpers
@@ -52,10 +54,10 @@ OLD_NAMESPACE_BASE = 'Topdata\\TopdataFoundationSW6'
 
 
 def inject_foundation_code(
-    target_plugin_build_dir: str | Path,
-    foundation_plugin_path: str | Path,
-    *,
-    console=None,
+        target_plugin_build_dir: str | Path,
+        foundation_plugin_path: str | Path,
+        *,
+        console=None,
 ) -> None:
     """Copy Foundation source code *into* the target plugin package.
 
@@ -97,7 +99,8 @@ def inject_foundation_code(
     if 'require' in composer_data and 'topdata/topdata-foundation-sw6' in composer_data['require']:
         del composer_data['require']['topdata/topdata-foundation-sw6']
         if console:
-            console.print("[dim]→ Removed '[bold cyan]topdata/topdata-foundation-sw6[/bold cyan]' from composer requirements.[/dim]")
+            console.print(
+                "[dim]→ Removed '[bold cyan]topdata/topdata-foundation-sw6[/bold cyan]' from composer requirements.[/dim]")
 
     # Determine the *target* plugin’s root namespace (e.g. "Topdata\\TopdataConnectorSW6").
     plugin_class: str = composer_data['extra']['shopware-plugin-class']
@@ -105,7 +108,7 @@ def inject_foundation_code(
 
     new_namespace_base = f"{target_namespace_base}\\Foundation"
 
-    # Add PSR-4 autoload rule so Shopware can find the injected classes.
+    # Add PSR-4 autoload rule so the injected classes can be found.
     composer_data.setdefault('autoload', {}).setdefault('psr-4', {})[f"{new_namespace_base}\\"] = "src/Foundation/"
 
     # Write changes back to disk.
@@ -124,7 +127,6 @@ def inject_foundation_code(
         dest_dir = target_foundation_dir / rel_path
 
         if not src_dir.exists():
-            # Foundation plugin might not contain *all* directories – skip missing ones.
             if console:
                 console.print(f"[yellow]→ Warning:[/] Source directory not found, skipping: {src_dir}")
             continue
@@ -132,7 +134,6 @@ def inject_foundation_code(
         if console:
             console.print(f"[dim]→ Copying [bold]{rel_path}[/] → {dest_dir}[/dim]")
 
-        # Python ≥3.8: copytree supports dirs_exist_ok.
         shutil.copytree(src_dir, dest_dir, dirs_exist_ok=True)
 
     # ------------------------------------------------------------------
@@ -148,17 +149,101 @@ def inject_foundation_code(
 
     # ------------------------------------------------------------------
     # 5. Re-write namespaces in the *main plugin* to update references.
-    #    This is the crucial step to fix `use` and `extends` statements.
     # ------------------------------------------------------------------
     if console:
         console.print(f"[dim]→ Updating references in the main plugin source...[/dim]")
 
-    # Pass the entire plugin build directory to the rewrite function
-    files_rewritten_in_target = rewrite_namespaces_in_dir(target_plugin_build_dir, OLD_NAMESPACE_BASE, new_namespace_base)
+    files_rewritten_in_target = rewrite_namespaces_in_dir(target_plugin_build_dir, OLD_NAMESPACE_BASE,
+                                                          new_namespace_base)
 
     if console:
         console.print(f"[dim]→ Updated references in {files_rewritten_in_target} main plugin files.[/dim]")
-        console.print("[green]✓ Foundation code injected and composer.json updated.[/green]")
+
+    # ------------------------------------------------------------------
+    # 6. Inject service definitions from foundation's services.xml
+    # ------------------------------------------------------------------
+    if console:
+        console.print("[dim]→ Injecting service definitions...[/dim]")
+
+    _inject_service_definitions(
+        foundation_plugin_path,
+        target_plugin_build_dir,
+        OLD_NAMESPACE_BASE,
+        new_namespace_base,
+        console
+    )
+
+    if console:
+        console.print("[green]✓ Foundation code injected and services registered.[/green]")
+
+
+def _inject_service_definitions(
+        foundation_path: Path,
+        target_path: Path,
+        old_ns: str,
+        new_ns: str,
+        console=None
+):
+    """
+    Injects service definitions from the foundation plugin's services.xml
+    into the target plugin's services.xml.
+    """
+    foundation_services_xml = foundation_path / 'src/Resources/config/services.xml'
+    target_services_xml = target_path / 'src/Resources/config/services.xml'
+
+    if not foundation_services_xml.exists():
+        if console:
+            console.print(f"[yellow]→ Warning:[/] Foundation services.xml not found, skipping injection.")
+        return
+    if not target_services_xml.exists():
+        if console:
+            console.print(f"[yellow]→ Warning:[/] Target services.xml not found, skipping injection.")
+        return
+
+    try:
+        # Load foundation and target XML documents
+        foundation_doc = minidom.parse(str(foundation_services_xml))
+        target_doc = minidom.parse(str(target_services_xml))
+
+        # Get the root <services> element from the target
+        target_services_node = target_doc.getElementsByTagName('services')[0]
+
+        # Get all <service> nodes from the foundation XML
+        foundation_service_nodes = foundation_doc.getElementsByTagName('service')
+
+        services_injected = 0
+        for service_node in foundation_service_nodes:
+            original_id = service_node.getAttribute('id')
+            if not original_id:
+                continue
+
+            # Rewrite the service ID to use the new namespace
+            new_id = original_id.replace(old_ns, new_ns, 1)
+            service_node.setAttribute('id', new_id)
+
+            # Import the modified node into the target document and append it
+            # (importNode is necessary to move nodes between documents)
+            imported_node = target_doc.importNode(service_node, True)
+            target_services_node.appendChild(imported_node)
+
+            services_injected += 1
+            if console:
+                console.print(f"[dim]  → Injected service: [cyan]{new_id}[/cyan][/dim]")
+
+        if services_injected > 0:
+            # Save the modified XML back to the target file
+            with open(target_services_xml, 'w', encoding='utf-8') as f:
+                # Use toprettyxml for clean formatting
+                xml_content = target_doc.toprettyxml(indent="    ", encoding="UTF-8").decode('utf-8')
+                # Remove extra blank lines created by toprettyxml
+                xml_content_cleaned = "\n".join([line for line in xml_content.split('\n') if line.strip()])
+                f.write(xml_content_cleaned)
+            if console:
+                console.print(f"[dim]→ Injected {services_injected} service definitions into services.xml.[/dim]")
+
+    except Exception as e:
+        if console:
+            console.print(f"[bold red]Error processing services.xml: {e}[/]")
 
 
 # ---------------------------------------------------------------------------
