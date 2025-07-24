@@ -80,6 +80,7 @@ def copy_plugin_files(temp_dir, plugin_name, source_dir='.', verbose=False, cons
         'CONVENTIONS.md',
         'CONVENTIONS-*.md',
         'CLAUDE.md',
+        'repomix-output.txt',
     ]
 
     # Read .sw-zip-blacklist if it exists
