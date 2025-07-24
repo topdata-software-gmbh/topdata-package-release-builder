@@ -134,10 +134,18 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
             # Version selection
             status.stop()
             major_version = get_major_version(original_version)
-            choices = [
-                {"name": bump.value, "value": bump.value}
-                for bump in VersionBump
-            ]
+            
+            # Calculate next versions for display
+            choices = []
+            for bump in VersionBump:
+                if bump == VersionBump.NONE:
+                    next_version = version
+                else:
+                    next_version = bump_version(original_version, bump).lstrip('v')
+                choices.append({
+                    "name": f"{bump.value} - {next_version}",
+                    "value": bump.value
+                })
             
             version_choice = inquirer.select(
                 message=f"Current Version is {version} - choose the version increment method:",
