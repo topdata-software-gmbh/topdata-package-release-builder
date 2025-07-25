@@ -116,14 +116,11 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
             # Verify timestamps of compiled assets
             # ------------------------------------------------------------------
             status.update("[bold blue]Verifying compiled files...")
-            from .config import SRC_PATH, DIST_PATH
             if not verify_compiled_files(
-                source_dir,
-                src_path=SRC_PATH,
-                dist_path=DIST_PATH,
-                verbose=verbose,
-                debug=debug,
-                console=console,
+                    source_dir,
+                    verbose=verbose,
+                    debug=debug,
+                    console=console,
             ):
                 console.print("[bold red]Build aborted due to outdated compiled files[/]")
                 raise click.Abort()

@@ -1,6 +1,7 @@
 # File: topdata_package_release_builder/foundation_injector.py
 
-"""Foundation plugin injection utilities.
+"""
+Foundation plugin injection utilities.
 
 This module provides the :func:`inject_foundation_code` helper that copies the
 relevant **TopdataFoundationSW6** source-code into a *target* plugin build

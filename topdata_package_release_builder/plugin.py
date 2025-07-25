@@ -153,92 +153,74 @@ def get_newest_mtime(directory: str, extensions: Iterable[str]) -> tuple[float, 
     return newest, newest_file, file_count
 
 
+# In file: topdata_package_release_builder/plugin.py
+
 def verify_compiled_files(
-    source_dir: str = '.',
-    *,
-    src_path: str = 'src/Resources/app/storefront/src',
-    dist_path: str = 'src/Resources/app/storefront/dist',
-    verbose: bool = False,
-    debug: bool = False,
-    console=None,
+        source_dir: str = '.',
+        *,
+        verbose: bool = False,
+        debug: bool = False,
+        console=None,
 ) -> bool:
-    """Verify that the compiled assets in *dist/* are newer than sources in *src/*.
-
-    The check is *type-based* – we do **not** attempt to map individual source
-    files to their compiled output.  Instead we take the **newest** timestamp
-    of relevant source file-types (TS/JS and SCSS/CSS) inside ``src/`` and
-    compare them with the newest timestamps of their compiled counterparts in
-    ``dist/``.  If any source timestamp is newer, the function returns
-    ``False`` and can be used by the caller to abort the build.
-
-    Parameters
-    ----------
-    source_dir:
-        Absolute or relative path of the plugin root directory.  The function
-        derives ``src/`` and ``dist/`` paths from it.
-    verbose:
-        If *True* we print diagnostic information to *console* (when given).
-    console:
-        An optional *rich.console.Console* instance used for coloured output.
-
-    Returns
-    -------
-    bool
-        ``True`` if **all** compiled timestamps are newer or equal to the
-        newest source timestamps; ``False`` otherwise.
     """
-    src_dir = os.path.join(source_dir, src_path)
-    dist_dir = os.path.join(source_dir, dist_path)
+    Verify that compiled assets in `public/` are newer than sources in `app/`.
+    This check is type-based and handles both administration and storefront assets.
+    """
 
-    # Collect newest timestamps (plus example files and counts).
-    js_sources, js_source_file, js_source_count = get_newest_mtime(src_dir, ('.ts', '.js'))
-    css_sources, css_source_file, css_source_count = get_newest_mtime(src_dir, ('.scss', '.css'))
-    js_compiled, js_compiled_file, js_compiled_count = get_newest_mtime(dist_dir, ('.js',))
-    css_compiled, css_compiled_file, css_compiled_count = get_newest_mtime(dist_dir, ('.css',))
+    checks = [
+        {
+            "type": "Administration JS",
+            "src_path": os.path.join(source_dir, "src/Resources/app/administration/src"),
+            "dist_path": os.path.join(source_dir, "src/Resources/public/administration/js"),
+            "src_ext": ('.ts', '.js'),
+            "dist_ext": ('.js',),
+        },
+        {
+            "type": "Storefront JS",
+            "src_path": os.path.join(source_dir, "src/Resources/app/storefront/src"),
+            "dist_path": os.path.join(source_dir, "src/Resources/public/storefront/js"),
+            "src_ext": ('.ts', '.js'),
+            "dist_ext": ('.js',),
+        },
+        {
+            "type": "Storefront CSS",
+            "src_path": os.path.join(source_dir, "src/Resources/app/storefront/src"),
+            "dist_path": os.path.join(source_dir, "src/Resources/public/storefront/css"),
+            "src_ext": ('.scss', '.css'),
+            "dist_ext": ('.css',),
+        },
+    ]
 
-    # ------------------------------------------------------------------
-    # Compare timestamps
-    # ------------------------------------------------------------------
-    errors: list[str] = []
-    # Only perform timestamp comparison if both source and compiled files of a given type exist.
-    # This handles the valid case where a plugin provides source files (e.g., SCSS for variables)
-    # but does not compile them into its own dist/ folder.
-    if js_source_count > 0 and js_compiled_count > 0 and js_sources > js_compiled:
-        errors.append(
-            f"JavaScript: Source ({time.ctime(js_sources) if js_sources else 'N/A'}) > "
-            f"Compiled ({time.ctime(js_compiled) if js_compiled else 'N/A'})"
-        )
+    all_errors: list[str] = []
 
-    if css_source_count > 0 and css_compiled_count > 0 and css_sources > css_compiled:
-        errors.append(
-            f"CSS: Source ({time.ctime(css_sources) if css_sources else 'N/A'}) > "
-            f"Compiled ({time.ctime(css_compiled) if css_compiled else 'N/A'})"
-        )
+    for check in checks:
+        if not os.path.exists(check["src_path"]):
+            if verbose and console:
+                console.print(f'[dim]→ Skipping check for {check["type"]}: source directory not found.[/dim]')
+            continue
 
-    if errors:
+        src_time, src_file, src_count = get_newest_mtime(check["src_path"], check["src_ext"])
+        dist_time, dist_file, dist_count = get_newest_mtime(check["dist_path"], check["dist_ext"])
+
+        # Only check if source files exist.
+        if src_count > 0 and dist_count > 0 and src_time > dist_time:
+            error_msg = (
+                f'{check["type"]}: Source ({time.ctime(src_time) if src_time else "N/A"}) > '
+                f'Compiled ({time.ctime(dist_time) if dist_time else "N/A"})'
+            )
+            all_errors.append(error_msg)
+            if debug and console:
+                console.print(
+                    f'- Outdated {check["type"]} found:\n'
+                    f"       Source File: {src_file or 'unknown'}\n"
+                    f"  vs. Compiled File: {dist_file or 'unknown'}"
+                )
+
+    if all_errors:
         if console:
             console.print("[bold red]Error: Compiled files are outdated[/]")
-            for err in errors:
+            for err in all_errors:
                 console.print(f"- {err}")
-
-            # Overview statistics
-            console.print(f"\n[bold]Source directory:[/] {src_dir} "
-                          f"({js_source_count} JS/TS, {css_source_count} CSS/SCSS files)")
-            console.print(f"[bold]Compiled directory:[/] {dist_dir} "
-                          f"({js_compiled_count} JS, {css_compiled_count} CSS files)")
-
-            if debug:
-                console.print("\n[bold]Specific files causing issues:[/]")
-                if js_source_count > 0 and js_compiled_count > 0 and js_sources > js_compiled:
-                    console.print(
-                        f"- JS: {js_source_file or 'unknown'} ({time.ctime(js_sources)})\n"
-                        f"       vs {js_compiled_file or 'unknown'} ({time.ctime(js_compiled) if js_compiled else 'N/A'})"
-                    )
-                if css_source_count > 0 and css_compiled_count > 0 and css_sources > css_compiled:
-                    console.print(
-                        f"- CSS: {css_source_file or 'unknown'} ({time.ctime(css_sources)})\n"
-                        f"        vs {css_compiled_file or 'unknown'} ({time.ctime(css_compiled) if css_compiled else 'N/A'})"
-                    )
         return False
 
     if verbose and console:
