@@ -39,3 +39,6 @@ htmlcov/
 builds/
 .aider*
 .env
+
+repomix-output.txt
+
