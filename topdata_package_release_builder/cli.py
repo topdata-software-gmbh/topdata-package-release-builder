@@ -8,7 +8,7 @@ from rich.panel import Panel
 import click
 from InquirerPy import inquirer
 
-from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir
+from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir, get_docs_generator_project_path
 from .git import get_git_info, check_git_status, stage_changes, commit_and_tag, push_changes
 from .plugin import (
     get_plugin_info,
@@ -257,12 +257,32 @@ def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_r
     elif slack_status is False:
         slack_message = "\n[yellow]Failed to send Slack notification[/]"
 
+    # Check for documentation setup
+    docs_generator_path = get_docs_generator_project_path()
+    manuals_dir = get_manuals_dir()
+    
+    docs_message = ""
+    if docs_generator_path and manuals_dir:
+        docs_message = f"\n\n[bold blue]Documentation Setup:[/]"
+        docs_message += f"\n[green]✓ Docs generator: {docs_generator_path}[/]"
+        docs_message += f"\n[green]✓ Manuals directory: {manuals_dir}[/]"
+        docs_message += f"\n[dim]Run: cd {docs_generator_path} && ./deploy/deploy.sh[/]"
+    elif manuals_dir:
+        docs_message = f"\n\n[bold yellow]Documentation Setup:[/]"
+        docs_message += f"\n[green]✓ Manuals directory: {manuals_dir}[/]"
+        docs_message += f"\n[yellow]⚠ Docs generator not configured[/]"
+    elif docs_generator_path:
+        docs_message = f"\n\n[bold yellow]Documentation Setup:[/]"
+        docs_message += f"\n[green]✓ Docs generator: {docs_generator_path}[/]"
+        docs_message += f"\n[yellow]⚠ Manuals directory not configured[/]"
+        docs_message += f"\n[dim]Run: cd {docs_generator_path} && ./deploy/deploy.sh[/]"
+
     console.print(Panel(f"""
 [bold green]Plugin successfully built![/]
 Plugin: {plugin_name}
 Version: v{version}
 Archive: {zip_name}
-Location: {output_dir}/{zip_name}{sync_message}{slack_message}
+Location: {output_dir}/{zip_name}{sync_message}{slack_message}{docs_message}
 
 [italic]Note: Built packages are stored in the release directory.[/]
     """, title="Success"))

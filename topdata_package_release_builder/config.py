@@ -92,3 +92,31 @@ def get_remote_config(plugin_name, verbose=False, console=None):
         'port': port,
         'path': remote_path
     }
+
+
+def get_docs_generator_project_path(verbose=False, console=None):
+    """Get docs generator project path from environment variables."""
+    if verbose and console:
+        console.print("[dim]→ Reading docs generator project path configuration[/]")
+    
+    docs_path = os.getenv('DOCS_GENERATOR_PROJECT_PATH')
+    
+    if verbose and console:
+        console.print(f"[dim]→ Found docs generator project path: {docs_path or 'Not set'}[/]")
+    
+    if not docs_path:
+        if verbose and console:
+            console.print("[yellow]→ DOCS_GENERATOR_PROJECT_PATH not set in environment[/]")
+        return None
+    
+    # Validate the path exists
+    path = Path(docs_path)
+    if not path.exists():
+        if verbose and console:
+            console.print(f"[yellow]→ Docs generator project path does not exist: {path.absolute()}[/]")
+        return None
+    
+    if verbose and console:
+        console.print(f"[dim]→ Validated docs generator project path: {path.absolute()}[/]")
+    
+    return str(path.absolute())
