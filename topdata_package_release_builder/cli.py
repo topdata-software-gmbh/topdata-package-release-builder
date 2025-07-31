@@ -9,8 +9,13 @@ import click
 from InquirerPy import inquirer
 
 from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir
-from .git import get_git_info
-from .plugin import get_plugin_info, copy_plugin_files, create_archive
+from .git import get_git_info, check_git_status, stage_changes, commit_and_tag, push_changes
+from .plugin import (
+    get_plugin_info,
+    copy_plugin_files,
+    create_archive,
+    verify_compiled_files,
+)
 from .release import create_release_info
 from .remote import sync_to_remote
 from .slack import send_release_notification
@@ -39,13 +44,57 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 
 @click.command(context_settings=dict(help_option_names=['-h', '--help']))
 @click.option('--output-dir', help='Override release directory (default: RELEASE_DIR from .env)')
+@click.option('--source-dir', default='.', help='Specify plugin source directory (default: current directory)')
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
 @click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
-def build_plugin(output_dir, no_sync, notify_slack, verbose):
-    """Build and package Shopware 6 plugin for release."""
+@click.option('--with-foundation', is_flag=True, help='Inject TopdataFoundationSW6 code into the plugin package.')
+@click.option('--debug', is_flag=True, help='Enable debug output for timestamp verification')
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation):
+    """
+    Build and package Shopware 6 plugin for release.
+
+    Automatically excludes files matching patterns from:
+    - .gitignore files in each directory
+    - .sw-zip-blacklist in the plugin root
+
+    Options:
+    - --source-dir: Specify plugin source directory (default: current directory)
+    - --no-sync: Disable syncing to remote server
+    - --notify-slack: Send notification to Slack after successful upload
+    - --verbose: Enable verbose output
+    """
     # Load environment variables
     load_env(verbose=verbose, console=console)
+
+    # Validate foundation plugin path if injection is requested
+    foundation_plugin_path = None
+    if with_foundation:
+        foundation_plugin_path = os.getenv('FOUNDATION_PLUGIN_PATH')
+        if not foundation_plugin_path or not os.path.isdir(foundation_plugin_path):
+            raise click.UsageError(
+                "--with-foundation flag was used, but FOUNDATION_PLUGIN_PATH is not set correctly in .env\n"
+                f"Path configured: {foundation_plugin_path}"
+            )
+        if verbose:
+            console.print(f"[dim]→ Foundation plugin path: {foundation_plugin_path}[/dim]")
+
+    # Validate source directory
+    if not os.path.isdir(source_dir):
+        raise click.UsageError(f"Source directory '{source_dir}' does not exist or is not a directory")
+
+    # Check for unstaged changes early
+    if check_git_status(source_dir=source_dir):
+        console.print("[yellow]Found unstaged changes![/]")
+        stage_confirm = inquirer.confirm(
+            message="Would you like to stage these changes?",
+            default=True
+        ).execute()
+        if stage_confirm:
+            stage_changes(source_dir=source_dir)
+        else:
+            console.print("[yellow]Skipping staging unstaged changes.[/]")
+
     try:
         # Use RELEASE_DIR from .env if no output_dir specified
         if not output_dir:
@@ -61,18 +110,39 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
         with console.status("[bold green]Building plugin...") as status:
             # Get information
             status.update("[bold blue]Getting git information...")
-            branch, commit = get_git_info(verbose=verbose, console=console)
+            branch, commit = get_git_info(source_dir=source_dir, verbose=verbose, console=console)
+
+            # ------------------------------------------------------------------
+            # Verify timestamps of compiled assets
+            # ------------------------------------------------------------------
+            status.update("[bold blue]Verifying compiled files...")
+            if not verify_compiled_files(
+                    source_dir,
+                    verbose=verbose,
+                    debug=debug,
+                    console=console,
+            ):
+                console.print("[bold red]Build aborted due to outdated compiled files[/]")
+                raise click.Abort()
 
             status.update("[bold blue]Reading plugin information...")
-            plugin_name, version, original_version = get_plugin_info(verbose=verbose, console=console)
+            plugin_name, version, original_version = get_plugin_info(source_dir=source_dir, verbose=verbose, console=console)
 
             # Version selection
             status.stop()
             major_version = get_major_version(original_version)
-            choices = [
-                {"name": bump.value, "value": bump.value}
-                for bump in VersionBump
-            ]
+            
+            # Calculate next versions for display
+            choices = []
+            for bump in VersionBump:
+                if bump == VersionBump.NONE:
+                    next_version = version
+                else:
+                    next_version = bump_version(original_version, bump).lstrip('v')
+                choices.append({
+                    "name": f"{bump.value} - {next_version}",
+                    "value": bump.value
+                })
             
             version_choice = inquirer.select(
                 message=f"Current Version is {version} - choose the version increment method:",
@@ -91,12 +161,24 @@ def build_plugin(output_dir, no_sync, notify_slack, verbose):
                 if verbose:
                     console.print(f"[dim]→ Version updated to: {new_version}[/]")
 
+                # Auto commit, tag, and push
+                commit_message = f"bump to version {new_version}"
+                commit_and_tag('composer.json', new_version, commit_message, source_dir=source_dir, verbose=verbose, console=console)
+                push_changes(branch, new_version, source_dir=source_dir, verbose=verbose, console=console)
+
             # Build process
             with tempfile.TemporaryDirectory() as temp_dir:
                 status.update("[bold blue]Copying plugin files...")
                 if verbose:
                     console.print(f"[dim]→ Using temporary directory: {temp_dir}[/]")
-                plugin_dir = copy_plugin_files(temp_dir, plugin_name, verbose=verbose, console=console)
+                plugin_dir = copy_plugin_files(temp_dir, plugin_name, source_dir=source_dir, verbose=verbose, console=console)
+
+                # --- INJECTION STEP ---
+                if with_foundation:
+                    status.update("[bold blue]Injecting foundation code...")
+                    from .foundation_injector import inject_foundation_code  # local import to avoid costs when not used
+                    inject_foundation_code(plugin_dir, foundation_plugin_path, console=console)
+                # --- END INJECTION STEP ---
 
                 status.update("[bold blue]Creating release info...")
                 release_info = create_release_info(plugin_name, branch, commit, version, verbose=verbose, console=console, table_style="panel")

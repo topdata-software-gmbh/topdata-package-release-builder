@@ -6,6 +6,10 @@ import os
 # Get the project root directory (2 levels up from this file)
 PROJECT_ROOT = Path(__file__).parent.parent
 
+# Default paths for timestamp verification (can be overridden by environment variables)
+# SRC_PATH = os.getenv('SRC_PATH', 'src/Resources/app/storefront/src')
+# DIST_PATH = os.getenv('DIST_PATH', 'src/Resources/app/storefront/dist')
+
 def load_env(verbose=False, console=None):
     """Load environment variables from .env file."""
     env_path = PROJECT_ROOT / '.env'
