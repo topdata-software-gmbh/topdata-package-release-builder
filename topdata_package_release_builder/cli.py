@@ -11,7 +11,7 @@ from InquirerPy import inquirer
 from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir, get_docs_generator_project_path
 from .git import (
     get_git_info, check_git_status, stage_changes, commit_and_tag, push_changes,
-    pull_changes_in_repo, commit_and_push_changes
+    pull_changes_in_repo, commit_and_push_changes, is_git_repository
 )
 from .plugin import (
     get_plugin_info,
@@ -205,7 +205,7 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                     copy_manuals(plugin_name, version, manuals_dir, source_dir, verbose=verbose, console=console)
                     
                     # 2. Check if the directory is a git repo and then commit/push
-                    if os.path.isdir(os.path.join(manuals_dir, '.git')):
+                    if is_git_repository(manuals_dir, verbose=verbose, console=console):
                         try:
                             status.update("[bold blue]Publishing manual to git repository...")
                             commit_message = f"docs({plugin_name}): Add manual for v{version}"

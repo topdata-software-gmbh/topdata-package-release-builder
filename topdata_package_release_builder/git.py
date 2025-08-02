@@ -146,3 +146,39 @@ def commit_and_push_changes(repo_path: str, commit_message: str, verbose: bool =
         raise
     finally:
         os.chdir(original_dir)
+
+
+def is_git_repository(repo_path: str, verbose: bool = False, console=None) -> bool:
+    """Checks if the specified path is inside a Git repository work tree."""
+    if not os.path.isdir(repo_path):
+        return False
+
+    original_dir = os.getcwd()
+    try:
+        os.chdir(repo_path)
+        if verbose and console:
+            console.print(f"[dim]→ Checking if '{os.path.abspath(repo_path)}' is a git repository...[/dim]")
+
+        # Use 'git rev-parse' as it's a reliable, low-overhead way to check.
+        # It exits with 0 if in a repo, non-zero otherwise.
+        result = subprocess.run(
+            ['git', 'rev-parse', '--is-inside-work-tree'],
+            capture_output=True,  # Suppress stdout/stderr from console
+            check=False,
+            text=True
+        )
+
+        is_repo = result.returncode == 0 and result.stdout.strip() == "true"
+        if verbose and console:
+            console.print(f"[dim]→ Is git repository: {'Yes' if is_repo else 'No'}[/dim]")
+
+        return is_repo
+
+    except (FileNotFoundError, Exception):
+        # Handles cases where git command is not found or other errors
+        if verbose and console:
+            console.print("[yellow]→ Git command check failed, assuming not a repository.[/yellow]")
+        return False
+    finally:
+        os.chdir(original_dir)
+
