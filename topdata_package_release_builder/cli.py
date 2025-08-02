@@ -70,6 +70,7 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
     """
     # Load environment variables
     load_env(verbose=verbose, console=console)
+    get_manuals_dir(verbose=verbose, console=console)
 
     # Validate foundation plugin path if injection is requested
     foundation_plugin_path = None
