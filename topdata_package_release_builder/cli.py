@@ -53,7 +53,8 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--with-foundation', is_flag=True, help='Inject TopdataFoundationSW6 code into the plugin package.')
 @click.option('--debug', is_flag=True, help='Enable debug output for timestamp verification')
-def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation):
+@click.option('--version-increment', type=click.Choice(['none', 'patch', 'minor', 'major']), help='Specify the version increment method (none, patch, minor, major). Skips interactive prompt.')
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, version_increment):
     zip_file_rsync_path = None
     """
     Build and package Shopware 6 plugin for release.
@@ -137,23 +138,34 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
             status.stop()
             major_version = get_major_version(original_version)
             
-            # Calculate next versions for display
-            choices = []
-            for bump in VersionBump:
-                if bump == VersionBump.NONE:
-                    next_version = version
-                else:
-                    next_version = bump_version(original_version, bump).lstrip('v')
-                choices.append({
-                    "name": f"{bump.value} - {next_version}",
-                    "value": bump.value
-                })
-            
-            version_choice = inquirer.select(
-                message=f"Current Version is {version} - choose the version increment method:",
-                choices=choices,
-                default=VersionBump.NONE.value,
-            ).execute()
+            version_choice = None
+            if version_increment:
+                if version_increment == 'patch':
+                    version_choice = VersionBump.PATCH.value
+                elif version_increment == 'minor':
+                    version_choice = VersionBump.MINOR.value
+                elif version_increment == 'major':
+                    version_choice = VersionBump.MAJOR.value
+                elif version_increment == 'none':
+                    version_choice = VersionBump.NONE.value
+            else:
+                # Calculate next versions for display
+                choices = []
+                for bump in VersionBump:
+                    if bump == VersionBump.NONE:
+                        next_version = version
+                    else:
+                        next_version = bump_version(original_version, bump).lstrip('v')
+                    choices.append({
+                        "name": f"{bump.value} - {next_version}",
+                        "value": bump.value
+                    })
+
+                version_choice = inquirer.select(
+                    message=f"Current Version is {version} - choose the version increment method:",
+                    choices=choices,
+                    default=VersionBump.NONE.value,
+                ).execute()
             
             status.start()
 
