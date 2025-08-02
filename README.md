@@ -51,11 +51,33 @@ sw-build --help
 By default, built packages will be stored in the directory specified by `RELEASE_DIR` in your `.env` file.
 You can override this with the `--output-dir` option.
 
-## excludes files:
-- some files are hardcoded to be excluded from a release zip (search for `ignored_patterns` in the code).
-- the builder makes use of .sw-zip-blacklist in the plugin folder (if found) when creating a release zip
+## Features
+
+### File Exclusion
+- Some files are hardcoded to be excluded from a release zip (search for `ignored_patterns` in the code).
+- The builder makes use of .sw-zip-blacklist in the plugin folder (if found) when creating a release zip.
+
+### Automatic Manual/Documentation Publishing
+The builder can automatically publish a plugin's documentation to a central location during the release process. This is useful for keeping a centralized documentation repository up-to-date with each new plugin version.
+
+**How it works:**
+
+1.  **Plugin Structure:** Your plugin must contain a `manual/` directory in its root. This directory should contain all documentation files (e.g., Markdown files, images).
+2.  **Configuration:** In your `.env` file, set the `MANUALS_DIR` variable to the absolute path of your central documentation directory.
+    ```dotenv
+    # in .env file
+    MANUALS_DIR=/path/to/your/central/docs/repo
+    ```
+3.  **Process:** When you run `sw-build`, after the plugin ZIP archive is successfully created, the tool will:
+    *   Check if `MANUALS_DIR` is configured.
+    *   If it is, it will copy the entire contents of your plugin's `manual/` directory to a versioned sub-folder in the destination.
+
+**Example:**
+- If you build version `1.2.3` of a plugin named `MyAwesomePlugin`.
+- And your `MANUALS_DIR` is set to `/docs/plugins`.
+- The documentation will be copied to `/docs/plugins/MyAwesomePlugin/v1.2.3/`.
 
 
 ## TODO
 - when creating a release zip, log it somewhere (release-log-path should be part of the config file)
-
+- 
