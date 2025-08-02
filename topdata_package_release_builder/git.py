@@ -95,3 +95,54 @@ def push_changes(branch: str, tag: str, source_dir='.', verbose=False, console=N
             raise
     finally:
         os.chdir(original_dir)
+
+
+def pull_changes_in_repo(repo_path: str, verbose: bool = False, console=None):
+    """Pulls the latest changes in the specified repository path."""
+    original_dir = os.getcwd()
+    try:
+        os.chdir(repo_path)
+        if verbose and console:
+            console.print(f"[dim]→ Pulling latest changes in {repo_path}...[/]")
+        subprocess.check_output(['git', 'pull'], stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        if console:
+            console.print(f"[bold red]Error pulling changes in repository '{repo_path}': {e.output.decode()}[/]")
+        raise
+    finally:
+        os.chdir(original_dir)
+
+
+def commit_and_push_changes(repo_path: str, commit_message: str, verbose: bool = False, console=None):
+    """Adds all changes, commits, and pushes them in the specified repository path."""
+    original_dir = os.getcwd()
+    try:
+        os.chdir(repo_path)
+        
+        if verbose and console:
+            console.print(f"[dim]→ Staging all changes in {repo_path}...[/]")
+        subprocess.check_output(['git', 'add', '.'])
+        
+        status_output = subprocess.check_output(['git', 'status', '--porcelain']).decode().strip()
+        if not status_output:
+            if console:
+                console.print("[dim]→ No changes to commit.[/]")
+            return
+
+        if verbose and console:
+            console.print(f"[dim]→ Committing with message: '{commit_message}'[/]")
+        subprocess.check_output(['git', 'commit', '-m', commit_message])
+        
+        if verbose and console:
+            console.print(f"[dim]→ Pushing changes to remote...[/]")
+        subprocess.check_output(['git', 'push'])
+        
+        if console:
+            console.print("[green]✓ Successfully published changes to git repository.[/]")
+
+    except subprocess.CalledProcessError as e:
+        if console:
+            console.print(f"[bold red]Error committing and pushing changes in '{repo_path}': {e.output.decode()}[/]")
+        raise
+    finally:
+        os.chdir(original_dir)

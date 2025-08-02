@@ -57,25 +57,23 @@ You can override this with the `--output-dir` option.
 - Some files are hardcoded to be excluded from a release zip (search for `ignored_patterns` in the code).
 - The builder makes use of .sw-zip-blacklist in the plugin folder (if found) when creating a release zip.
 
-### Automatic Manual/Documentation Publishing
-The builder can automatically publish a plugin's documentation to a central location during the release process. This is useful for keeping a centralized documentation repository up-to-date with each new plugin version.
-
-**How it works:**
-
-1.  **Plugin Structure:** Your plugin must contain a `manual/` directory in its root. This directory should contain all documentation files (e.g., Markdown files, images).
-2.  **Configuration:** In your `.env` file, set the `MANUALS_DIR` variable to the absolute path of your central documentation directory.
-    ```dotenv
-    # in .env file
-    MANUALS_DIR=/path/to/your/central/docs/repo
-    ```
-3.  **Process:** When you run `sw-build`, after the plugin ZIP archive is successfully created, the tool will:
-    *   Check if `MANUALS_DIR` is configured.
-    *   If it is, it will copy the entire contents of your plugin's `manual/` directory to a versioned sub-folder in the destination.
-
-**Example:**
-- If you build version `1.2.3` of a plugin named `MyAwesomePlugin`.
-- And your `MANUALS_DIR` is set to `/docs/plugins`.
-- The documentation will be copied to `/docs/plugins/MyAwesomePlugin/v1.2.3/`.
+> ### Automatic Manual/Documentation Publishing
+> 
+> The builder can automatically publish a plugin's documentation to a central location. If this location is a Git repository, the tool can also automatically commit and push the changes, creating a fully automated documentation pipeline.
+> 
+> **How it works:**
+> 
+> 1.  **Central Repository:** You must have a central Git repository to store all your manuals. Clone this repository to your local machine.
+> 2.  **Plugin Structure:** Your plugin must contain a `manual/` directory in its root.
+> 3.  **Configuration:** In your `.env` file, set the `MANUALS_DIR` variable to the absolute path of your **local clone** of the central documentation repository.
+>     ```dotenv
+>     # in .env file
+>     MANUALS_DIR=/path/to/your/central/docs/repo
+>     ```
+> 4.  **Process:** When you run `sw-build`, the tool will:
+>     *   Check if `MANUALS_DIR` is set.
+>     *   Copy the plugin's `manual/` directory into a versioned sub-folder (e.g., `MANUALS_DIR/PluginName/v1.2.3/`).
+>     *   **If `MANUALS_DIR` is a Git repository**, it will then automatically perform a `git pull`, `git add`, `git commit`, and `git push` on that repository.
 
 
 ## TODO

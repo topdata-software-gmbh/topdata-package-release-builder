@@ -9,7 +9,10 @@ import click
 from InquirerPy import inquirer
 
 from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir, get_docs_generator_project_path
-from .git import get_git_info, check_git_status, stage_changes, commit_and_tag, push_changes
+from .git import (
+    get_git_info, check_git_status, stage_changes, commit_and_tag, push_changes,
+    pull_changes_in_repo, commit_and_push_changes
+)
 from .plugin import (
     get_plugin_info,
     copy_plugin_files,
@@ -51,6 +54,7 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--with-foundation', is_flag=True, help='Inject TopdataFoundationSW6 code into the plugin package.')
 @click.option('--debug', is_flag=True, help='Enable debug output for timestamp verification')
 def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation):
+    zip_file_rsync_path = None
     """
     Build and package Shopware 6 plugin for release.
 
@@ -192,11 +196,33 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                 zip_path = os.path.join(output_dir, zip_name)
                 create_archive(output_dir, plugin_name, version, temp_dir, verbose, console)
 
-                # Copy manuals if MANUALS_DIR is configured
+                # --- Publish Documentation ---
                 manuals_dir = get_manuals_dir(verbose=verbose, console=console)
                 if manuals_dir:
+                    # 1. Copy the files first
                     status.update("[bold blue]Copying manuals...")
-                    copy_manuals(plugin_name, version, manuals_dir, verbose=verbose, console=console)
+                    copy_manuals(plugin_name, version, manuals_dir, source_dir, verbose=verbose, console=console)
+                    
+                    # 2. Check if the directory is a git repo and then commit/push
+                    if os.path.isdir(os.path.join(manuals_dir, '.git')):
+                        try:
+                            status.update("[bold blue]Publishing manual to git repository...")
+                            commit_message = f"docs({plugin_name}): Add manual for v{version}"
+                            
+                            pull_changes_in_repo(manuals_dir, verbose=verbose, console=console)
+                            
+                            commit_and_push_changes(
+                                repo_path=manuals_dir,
+                                commit_message=commit_message,
+                                verbose=verbose,
+                                console=console
+                            )
+                        except Exception as e:
+                            # If git operations fail, we print an error but don't stop the build,
+                            # as the primary goal (creating the zip) was successful.
+                            console.print(f"[bold red]Warning:[/] Failed to publish manual to git repository: {e}")
+                    elif verbose:
+                        console.print(f"[dim]→ MANUALS_DIR '{manuals_dir}' is not a git repository, skipping auto-commit.[/dim]")
 
 
                 # ---- Get remote config and sync if enabled

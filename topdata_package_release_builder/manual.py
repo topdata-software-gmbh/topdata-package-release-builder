@@ -3,7 +3,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-def copy_manuals(plugin_name: str, version: str, manuals_dir: str, verbose: bool = False, console = None):
+def copy_manuals(plugin_name: str, version: str, manuals_dir: str, plugin_source_dir: str, verbose: bool = False, console = None):
     """
     Copy manuals folder to the specified manual directory.
     
@@ -17,7 +17,7 @@ def copy_manuals(plugin_name: str, version: str, manuals_dir: str, verbose: bool
     if verbose and console:
         console.print("[dim]→ Copying manuals...[/]")
     
-    source_dir = Path('manual')
+    source_dir = Path(plugin_source_dir) / 'manual'
     if not source_dir.exists():
         if verbose and console:
             console.print(f"[yellow]→ No manual dir {source_dir} found, skipping[/]")
