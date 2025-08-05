@@ -75,6 +75,31 @@ You can override this with the `--output-dir` option.
 >     *   Copy the plugin's `manual/` directory into a versioned sub-folder (e.g., `MANUALS_DIR/PluginName/v1.2.3/`).
 >     *   **If `MANUALS_DIR` is a Git repository**, it will then automatically perform a `git pull`, `git add`, `git commit`, and `git push` on that repository.
 
+### Foundation Plugin Injection
+
+The builder can automatically inject the TopdataFoundationSW6 plugin code into your plugin packages when needed. This feature is designed to work seamlessly with Shopware 6 plugin dependencies.
+
+**How it works:**
+
+1.  **Automatic Detection:** The builder automatically checks if your plugin declares `TopdataFoundationSW6` as a dependency in its `composer.json` file.
+2.  **Smart Injection:** If the dependency is found, the foundation plugin code is automatically injected into the built package.
+3.  **Override Option:** You can override the automatic behavior using the `TOPDATA_FORCE_FOUNDATION_INJECTION` environment variable:
+    *   Set `TOPDATA_FORCE_FOUNDATION_INJECTION=1` to force injection even if the dependency is not declared.
+    *   Set `TOPDATA_FORCE_FOUNDATION_INJECTION=0` to disable injection even if the dependency is declared.
+4.  **CLI Flag:** Use the `--with-foundation` flag to force injection regardless of dependency declaration or environment variable settings.
+
+**Usage Examples:**
+
+```bash
+# Standard case - injects foundation if dependency is declared
+sw-build
+
+# Force injection even without dependency
+sw-build --with-foundation
+
+# Override with environment variable
+TOPDATA_FORCE_FOUNDATION_INJECTION=1 sw-build
+```
 
 ## TODO
 - when creating a release zip, log it somewhere (release-log-path should be part of the config file)

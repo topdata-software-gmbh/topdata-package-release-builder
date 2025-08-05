@@ -10,6 +10,7 @@ import json
 import shutil
 import os
 import zipfile
+from pathlib import Path
 from typing import List, Iterable
 from .tree import build_ascii_directory_tree
 import time
@@ -242,3 +243,22 @@ def create_archive(output_dir, plugin_name, version, temp_dir, verbose=False, co
     if verbose and console:
         console.print(f"[dim]→ Archive created successfully[/]")
     return result
+
+def has_foundation_dependency(source_dir='.', verbose=False, console=None) -> bool:
+    """Checks if the plugin's composer.json requires the foundation plugin."""
+    composer_path = Path(source_dir) / 'composer.json'
+    if not composer_path.is_file():
+        return False
+
+    try:
+        with open(composer_path, 'r', encoding='utf-8') as f:
+            composer_data = json.load(f)
+
+        has_dep = 'topdata/topdata-foundation-sw6' in composer_data.get('require', {})
+        if verbose and console:
+            console.print(f"[dim]→ Checking for foundation dependency in composer.json: {'[green]Yes[/green]' if has_dep else 'No'}[/dim]")
+        return has_dep
+    except (json.JSONDecodeError, IOError):
+        if verbose and console:
+            console.print(f"[yellow]Warning: Could not parse {composer_path}[/yellow]")
+        return False

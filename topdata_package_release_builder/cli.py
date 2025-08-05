@@ -18,6 +18,7 @@ from .plugin import (
     copy_plugin_files,
     create_archive,
     verify_compiled_files,
+    has_foundation_dependency,
 )
 from .release import create_release_info
 from .remote import sync_to_remote
@@ -26,6 +27,36 @@ from .version import VersionBump, bump_version, update_composer_version, get_maj
 from .manual import copy_manuals
 
 console = Console()
+
+
+def _get_foundation_path(source_dir: str, verbose: bool, console) -> str | None:
+    """
+    Determines the path to the foundation plugin, prioritizing environment variables
+    over a default relative path.
+    """
+    # 1. Check for an explicit override from the environment variable.
+    foundation_path_env = os.getenv('FOUNDATION_PLUGIN_PATH')
+    if foundation_path_env:
+        if verbose:
+            console.print("[dim]→ Using FOUNDATION_PLUGIN_PATH from environment.[/dim]")
+        path_to_check = Path(foundation_path_env)
+    else:
+        # 2. If no override, construct the default path relative to the target plugin.
+        # e.g., if source_dir is '.../my-plugin', this will be '.../topdata-foundation-sw6'
+        if verbose:
+            console.print("[dim]→ FOUNDATION_PLUGIN_PATH not set, checking default relative path.[/dim]")
+        default_path = Path(source_dir).resolve().parent / 'topdata-foundation-sw6'
+        path_to_check = default_path
+
+    # 3. Validate the determined path.
+    if path_to_check.is_dir():
+        if verbose:
+            console.print(f"[dim]→ Valid foundation plugin path found: {path_to_check.resolve()}[/dim]")
+        return str(path_to_check.resolve())
+
+    if verbose:
+        console.print(f"[yellow]→ Foundation plugin not found at checked path: {path_to_check}[/yellow]")
+    return None
 
 
 def _get_download_url(zip_file_rsync_path: str) -> str|None:
@@ -51,7 +82,7 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--no-sync', is_flag=True, help='Disable syncing to remote server')
 @click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
-@click.option('--with-foundation', is_flag=True, help='Inject TopdataFoundationSW6 code into the plugin package.')
+@click.option('--with-foundation', is_flag=True, help='Force injection of TopdataFoundationSW6 code even if plugin does not declare it as dependency.')
 @click.option('--debug', is_flag=True, help='Enable debug output for timestamp verification')
 @click.option('--version-increment', type=click.Choice(['none', 'patch', 'minor', 'major']), help='Specify the version increment method (none, patch, minor, major). Skips interactive prompt.')
 def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, version_increment):
@@ -75,12 +106,23 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
 
     # Validate foundation plugin path if injection is requested
     foundation_plugin_path = None
-    if with_foundation:
-        foundation_plugin_path = os.getenv('FOUNDATION_PLUGIN_PATH')
-        if not foundation_plugin_path or not os.path.isdir(foundation_plugin_path):
+    should_inject = with_foundation
+    
+    # Phase 2: Automatic injection based on composer.json
+    if not should_inject:
+        # Check if foundation is a dependency in composer.json
+        if has_foundation_dependency(source_dir, verbose=verbose, console=console):
+            should_inject = True
+            if verbose:
+                console.print("[dim]→ Foundation dependency detected in composer.json, enabling injection[/dim]")
+    
+    if should_inject:
+        foundation_plugin_path = _get_foundation_path(source_dir, verbose, console)
+        if not foundation_plugin_path:
             raise click.UsageError(
-                "--with-foundation flag was used, but FOUNDATION_PLUGIN_PATH is not set correctly in .env\n"
-                f"Path configured: {foundation_plugin_path}"
+                "Foundation plugin injection requested but foundation plugin not found.\n"
+                "Please ensure the foundation plugin is available at the expected location "
+                "or set FOUNDATION_PLUGIN_PATH in your .env file."
             )
         if verbose:
             console.print(f"[dim]→ Foundation plugin path: {foundation_plugin_path}[/dim]")
@@ -191,7 +233,7 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                 plugin_dir = copy_plugin_files(temp_dir, plugin_name, source_dir=source_dir, verbose=verbose, console=console)
 
                 # --- INJECTION STEP ---
-                if with_foundation:
+                if should_inject:
                     status.update("[bold blue]Injecting foundation code...")
                     from .foundation_injector import inject_foundation_code  # local import to avoid costs when not used
                     inject_foundation_code(plugin_dir, foundation_plugin_path, console=console)
