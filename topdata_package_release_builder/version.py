@@ -1,4 +1,5 @@
-"""Version management module."""
+# topdata_package_release_builder/version.py
+
 import json
 from enum import Enum
 from typing import Tuple
@@ -11,10 +12,26 @@ class VersionBump(Enum):
     MAJOR = "Major"
 
 def parse_version(version: str) -> Tuple[int, int, int]:
-    """Parse version string into tuple of integers."""
+    """
+    Parse version string into tuple of integers.
+    Enforces MAJOR.MINOR.PATCH format.
+    """
     v = version.lstrip('v')
-    major, minor, patch = map(int, v.split('.'))
-    return major, minor, patch
+    parts = v.split('.')
+    if len(parts) != 3:
+        raise ValueError(
+            f"Invalid version number found: '{version}'. "
+            "Expected format is MAJOR.MINOR.PATCH (e.g., 1.2.3)."
+        )
+    try:
+        major, minor, patch = map(int, parts)
+        return major, minor, patch
+    except (ValueError, TypeError) as e:
+        raise ValueError(
+            f"Invalid version number found: '{version}'. "
+            f"All parts must be integers. Original error: {e}"
+        ) from e
+
 
 def bump_version(current_version: str, bump_type: VersionBump) -> str:
     """Increment version according to bump type."""
