@@ -6,29 +6,30 @@ This checklist outlines the plan to move business logic from `cli.py` into a new
 
 ### Phase 1: Preparation and Scaffolding
 
-*   [ ] **Create New File:** In the `topdata_package_release_builder/` directory, create a new empty file named `workflow.py`.
-*   [ ] **Add Boilerplate:** Add the initial docstring and all anticipated `import` statements to the top of `workflow.py`.
-*   [ ] **Verification:** Run `sw-build --help` to confirm that adding the new file has not broken anything.
+*   [x] **Create New File:** In the `topdata_package_release_builder/` directory, create a new empty file named `workflow.py`.
+*   [x] **Add Boilerplate:** Add the initial docstring and all anticipated `import` statements to the top of `workflow.py`.
+*   [x] **Verification:** Run `sw-build --help` to confirm that adding the new file has not broken anything.
 
 ---
 
 ### Phase 2: Extract the Versioning Workflow
 
-*   [ ] **Define Function:** In `workflow.py`, define the function signature for `handle_versioning_workflow(...)`.
-*   [ ] **Cut Logic from `cli.py`:** In `cli.py`, find the block of code responsible for version selection (starting from `major_version = ...` down to `push_changes(...)`) and **cut** it.
-*   [ ] **Paste Logic:** **Paste** the cut code into the `handle_versioning_workflow` function in `workflow.py`.
-*   [ ] **Adapt Code:**
-    *   [ ] Adjust variable names inside the function to match its parameters (e.g., `version_increment` -> `version_increment_cli`).
-    *   [ ] Add `return current_version` for the `VersionBump.NONE` case.
-    *   [ ] Add `return new_version_str.lstrip('v')` at the end for successful bumps.
-*   [ ] **Update `cli.py`:**
-    *   [ ] Add `from .workflow import handle_versioning_workflow` to the imports.
-    *   [ ] In the location where the code was cut, add the call to `handle_versioning_workflow(...)`.
-*   [ ] **Verification:**
-    *   [ ] Test `sw-build` with the interactive versioning prompt.
-    *   [ ] Test `sw-build --version-increment patch`.
-    *   [ ] Test `sw-build --version-increment none`.
-    *   [ ] Confirm that `composer.json` is updated and new git tags are created as expected.
+*   [x] **Define Function:** In `workflow.py`, define the function signature for `handle_versioning_workflow(...)`.
+*   [x] **Cut Logic from `cli.py`:** In `cli.py`, find the block of code responsible for version selection (starting from `major_version = ...` down to `push_changes(...)`) and **cut** it.
+*   [x] **Paste Logic:** **Paste** the cut code into the `handle_versioning_workflow` function in `workflow.py`.
+*   [x] **Adapt Code:**
+    *   [x] Adjust variable names inside the function to match its parameters (e.g., `version_increment` -> `version_increment_cli`).
+    *   [x] Add `return current_version` for the `VersionBump.NONE` case.
+    *   [x] Add `return new_version_str.lstrip('v')` at the end for successful bumps.
+*   [x] **Update `cli.py`:**
+    *   [x] Add `from .workflow import handle_versioning_workflow` to the imports.
+    *   [x] In the location where the code was cut, add the call to `handle_versioning_workflow(...)`.
+*   [x] **Verification:**
+    *   [x] Test `sw-build` with the interactive versioning prompt.
+    *   [x] Test `sw-build --version-increment patch`.
+    *   [x] Test `sw-build --version-increment none`.
+    *   [x] Confirm that `sw-build --help` shows the `--version-increment` option correctly.
+    *   [x] Fixed critical bug: restored missing `inquirer` import for staging confirmation.
 
 ---
 
