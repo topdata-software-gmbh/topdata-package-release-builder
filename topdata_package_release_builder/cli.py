@@ -25,6 +25,7 @@ from .remote import sync_to_remote
 from .slack import send_release_notification
 from .version import VersionBump, bump_version, update_composer_version, get_major_version
 from .manual import copy_manuals
+from .variant import transform_to_variant
 
 console = Console()
 
@@ -85,7 +86,9 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--with-foundation', is_flag=True, help='Force injection of TopdataFoundationSW6 code even if plugin does not declare it as dependency.')
 @click.option('--debug', is_flag=True, help='Enable debug output for timestamp verification')
 @click.option('--version-increment', type=click.Choice(['none', 'patch', 'minor', 'major']), help='Specify the version increment method (none, patch, minor, major). Skips interactive prompt.')
-def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, version_increment):
+@click.option('--variant-prefix', default=None, help='Add a prefix to create a renamed variant package (e.g., "Free").')
+@click.option('--variant-suffix', default=None, help='Add a suffix to create a renamed variant package.')
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, version_increment, variant_prefix, variant_suffix):
     zip_file_rsync_path = None
     """
     Build and package Shopware 6 plugin for release.
@@ -295,6 +298,77 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                         sync_status = True
                         download_url = _get_download_url(zip_file_rsync_path)
 
+                # ---- Handle variant creation if requested
+                variant_info = None
+                if variant_prefix or variant_suffix:
+                    status.update("[bold blue]Creating variant package...")
+                    
+                    # Create second temporary directory for variant processing
+                    with tempfile.TemporaryDirectory() as variant_temp_dir:
+                        if verbose:
+                            console.print(f"[dim]→ Using variant temporary directory: {variant_temp_dir}[/]")
+                        
+                        # Copy plugin files to variant directory
+                        variant_plugin_dir = copy_plugin_files(
+                            variant_temp_dir,
+                            plugin_name,
+                            source_dir=source_dir,
+                            verbose=verbose,
+                            console=console
+                        )
+                        
+                        # Apply variant transformation
+                        variant_name = transform_to_variant(
+                            Path(variant_plugin_dir),
+                            plugin_name,
+                            prefix=variant_prefix or "",
+                            suffix=variant_suffix or "",
+                            console=console
+                        )
+                        
+                        # Create release info for variant
+                        variant_release_info = create_release_info(
+                            variant_name,
+                            branch,
+                            commit,
+                            version,
+                            verbose=verbose,
+                            console=console,
+                            table_style="panel"
+                        )
+                        print(variant_release_info)
+                        with open(os.path.join(variant_temp_dir, variant_name, 'release_info.txt'), 'w') as f:
+                            f.write(str(variant_release_info))
+                        
+                        # Create variant ZIP archive
+                        variant_zip_name = f"{variant_name}-v{version}.zip"
+                        variant_zip_path = os.path.join(output_dir, variant_zip_name)
+                        create_archive(output_dir, variant_name, version, variant_temp_dir, verbose, console)
+                        
+                        # Sync variant to remote if enabled
+                        variant_sync_status = None
+                        variant_download_url = None
+                        variant_zip_file_rsync_path = None
+                        if remote_config and not no_sync:
+                            status.update("[bold blue]Syncing variant to remote server...")
+                            variant_zip_file_rsync_path = sync_to_remote(
+                                variant_zip_path,
+                                remote_config,
+                                verbose=verbose,
+                                console=console
+                            )
+                            variant_sync_status = True
+                            variant_download_url = _get_download_url(variant_zip_file_rsync_path)
+                        
+                        variant_info = {
+                            'name': variant_name,
+                            'zip_name': variant_zip_name,
+                            'zip_path': variant_zip_path,
+                            'sync_status': variant_sync_status,
+                            'download_url': variant_download_url,
+                            'zip_file_rsync_path': variant_zip_file_rsync_path
+                        }
+
         # Send Slack notification if enabled
         slack_status = None
         if notify_slack:
@@ -317,13 +391,13 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                 console=console
             )
 
-        _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status)
+        _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status, variant_info)
 
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}", style="red")
         raise click.Abort()
 
-def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status=None):
+def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status=None, variant_info=None):
     """Display success message after build completion."""
     sync_message = ""
     if zip_file_rsync_path:
@@ -358,12 +432,32 @@ def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_r
         docs_message += f"\n[yellow]⚠ Manuals directory not configured[/]"
         docs_message += f"\n[dim]Run: cd {docs_generator_path} && ./deploy/deploy.sh[/]"
 
-    console.print(Panel(f"""
-[bold green]Plugin successfully built![/]
+    # Build main package info
+    main_package_info = f"""
+[bold green]Main Package:[/]
 Plugin: {plugin_name}
 Version: v{version}
 Archive: {zip_name}
-Location: {output_dir}/{zip_name}{sync_message}{slack_message}{docs_message}
+Location: {output_dir}/{zip_name}{sync_message}"""
+
+    # Build variant package info if available
+    variant_package_info = ""
+    if variant_info:
+        variant_sync_message = ""
+        if variant_info['zip_file_rsync_path']:
+            variant_sync_message = f"\n[green]Successfully synced to remote server[/]"
+            variant_sync_message += f"\n[green]DL: {_get_download_url(variant_info['zip_file_rsync_path'])}[/]"
+        
+        variant_package_info = f"""
+[bold blue]Variant Package:[/]
+Plugin: {variant_info['name']}
+Version: v{version}
+Archive: {variant_info['zip_name']}
+Location: {output_dir}/{variant_info['zip_name']}{variant_sync_message}"""
+
+    console.print(Panel(f"""
+[bold green]Plugin successfully built![/]
+{main_package_info}{variant_package_info}{slack_message}{docs_message}
 
 [italic]Note: Built packages are stored in the release directory.[/]
     """, title="Success"))

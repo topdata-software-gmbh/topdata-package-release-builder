@@ -20,6 +20,7 @@ The tool was created in October 2024.
 *   **Optional Remote Sync:** Can automatically sync the built package to a remote server using `rsync` if configured in `.env`.
 *   **Optional Slack Notifications:** Can send a notification to a configured Slack channel upon successful build and sync, including a download link if available.
 *   **Optional Manuals Copying:** Can copy associated manuals from a configured directory (`MANUALS_DIR`) into the release structure.
+*   **Plugin Variant Creation:** Supports creating renamed variants of plugins using `--variant-prefix` and `--variant-suffix` flags, automatically transforming plugin names, namespaces, and metadata.
 
 ## 3. Architecture & Implementation Details
 

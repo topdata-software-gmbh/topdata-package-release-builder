@@ -101,6 +101,44 @@ sw-build --with-foundation
 TOPDATA_FORCE_FOUNDATION_INJECTION=1 sw-build
 ```
 
+### Creating Renamed Variants
+
+The builder supports creating renamed variants of your plugin packages, allowing you to maintain multiple versions with different names for different markets or purposes.
+
+**Purpose:**
+- Create free versions of paid plugins by adding "Free" prefix
+- Generate branded variants for different clients
+- Maintain separate plugin identities for different feature sets
+- Support A/B testing with different plugin names
+
+**Usage:**
+
+Use the `--variant-prefix` and/or `--variant-suffix` flags to create renamed variants:
+
+```bash
+# Create a free variant with "Free" prefix
+sw-build --variant-prefix Free
+
+# Create a branded variant with suffix
+sw-build --variant-suffix Pro
+
+# Combine both prefix and suffix
+sw-build --variant-prefix Free --variant-suffix Lite
+
+# Create multiple variants in one build
+sw-build --variant-prefix Free --variant-suffix Basic --variant-suffix Pro
+```
+
+**What gets renamed:**
+- Plugin name and description in plugin.xml
+- Composer package name and description
+- PHP namespace and class names
+- Service IDs and configuration keys
+- Administration module names and routes
+- Storefront template paths
+
+The original plugin package is always built alongside any variants, giving you both the original and renamed versions.
+
 ## TODO
 - when creating a release zip, log it somewhere (release-log-path should be part of the config file)
 - 
