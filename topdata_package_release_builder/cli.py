@@ -352,6 +352,7 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                 commit=commit,
                 download_url=download_url,  # Using the sync URL as the download link
                 webhook_url=webhook_url,
+                variant_info=variant_info,  # Add this line
                 verbose=verbose,
                 console=console
             )

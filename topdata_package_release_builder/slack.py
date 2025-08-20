@@ -1,6 +1,7 @@
 """Slack notification module for plugin releases."""
 import json
 import os
+from typing import Dict, Optional
 
 import requests
 from .release import create_release_info
@@ -13,6 +14,7 @@ def send_release_notification(
     commit: str,
     download_url: str,
     webhook_url: str,
+    variant_info: Optional[Dict] = None,  # Add this parameter
     verbose: bool = False,
     console: Console = None
 ) -> bool:
@@ -22,37 +24,29 @@ def send_release_notification(
             console.print("[yellow]Warning:[/] No Slack webhook URL provided")
         return False
 
+    header_text = f"🚀 New Plugin Release: {plugin_name} v{version}"
+    if variant_info:
+        header_text = f"🚀 New Plugin Release & Variant for: {plugin_name} v{version}"
+
+    # Main package info
+    main_package_info = create_release_info(
+        plugin_name, branch, commit, version, verbose, console, table_style="panel"
+    )
+
     message = {
         "blocks": [
             {
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": f"🚀 New Plugin Release: {plugin_name} v{version}"
+                    "text": header_text
                 }
             },
-            # {
-            #     "type": "section",
-            #     "fields": [
-            #         {
-            #             "type": "mrkdwn",
-            #             "text": f"*Plugin*:\n{plugin_name}"
-            #         },
-            #         {
-            #             "type": "mrkdwn",
-            #             "text": f"*Version:*\nv{version}"
-            #         },
-            #         {
-            #             "type": "mrkdwn",
-            #             "text": f"*Branch:*\n{branch}"
-            #         }
-            #     ]
-            # },
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"```\n{create_release_info(plugin_name, branch, commit, version, verbose, console, table_style="panel")}\n```"
+                    "text": f"*Main Package:*\n```{main_package_info}```"
                 }
             }
         ]
@@ -66,6 +60,33 @@ def send_release_notification(
                 "text": f"*Download:*\n{download_url}"
             }
         })
+    
+    # --- Add Variant Info if it exists ---
+    if variant_info and variant_info.get('name'):
+        variant_name = variant_info['name']
+        variant_download_url = variant_info.get('download_url')
+        
+        variant_package_info = create_release_info(
+            variant_name, branch, commit, version, verbose, console, table_style="panel"
+        )
+
+        message["blocks"].append({"type": "divider"})
+        message["blocks"].append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Variant Package:*\n```{variant_package_info}```"
+            }
+        })
+
+        if variant_download_url:
+            message["blocks"].append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Download Variant:*\n{variant_download_url}"
+                }
+            })
 
     try:
         if verbose and console:
