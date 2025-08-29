@@ -65,13 +65,16 @@ def transform_to_variant(
     
     # Perform global find-replace
     _perform_global_replacement(
-        plugin_dir, 
-        original_name, 
-        new_name, 
-        original_namespace, 
+        plugin_dir,
+        original_name,
+        new_name,
+        original_namespace,
         new_namespace,
         console
     )
+    
+    # Rename storefront JS assets
+    _rename_storefront_js_assets(plugin_dir, original_name, new_name, console)
     
     # Rename root directory
     _rename_root_directory(plugin_dir, original_name, new_name, console)
@@ -270,6 +273,52 @@ def _perform_global_replacement(
                 continue
     
     console.print(f"  Processed {files_processed} files with replacements")
+
+
+def _camel_to_kebab(name: str) -> str:
+    """Convert CamelCase to kebab-case."""
+    # Handle consecutive uppercase letters (like SW6)
+    s1 = re.sub('([A-Z][a-z])', r'-\1', name)
+    s2 = re.sub('([a-z])([A-Z])', r'\1-\2', s1)
+    return s2.strip('-').lower()
+
+
+def _rename_storefront_js_assets(
+    plugin_dir: Path,
+    original_name: str,
+    new_name: str,
+    console: Console
+) -> None:
+    """Rename storefront JS assets directory and files."""
+    js_dist_dir = plugin_dir / "src" / "Resources" / "app" / "storefront" / "dist" / "storefront" / "js"
+    
+    if not js_dist_dir.exists():
+        console.print(f"[yellow]  Warning: JS dist directory not found: {js_dist_dir}[/]")
+        return
+    
+    # Convert names to kebab-case for directory naming
+    original_kebab = _camel_to_kebab(original_name)
+    new_kebab = _camel_to_kebab(new_name)
+    
+    # Rename directory
+    original_dir = js_dist_dir / original_kebab
+    new_dir = js_dist_dir / new_kebab
+    
+    if original_dir.exists():
+        original_dir.rename(new_dir)
+        console.print(f"  Renamed JS directory: {original_dir.name} -> {new_dir.name}")
+    else:
+        console.print(f"[yellow]  Warning: JS directory not found: {original_dir}[/]")
+    
+    # Rename JS file
+    original_js = new_dir / f"{original_kebab}.js"
+    new_js = new_dir / f"{new_kebab}.js"
+    
+    if original_js.exists():
+        original_js.rename(new_js)
+        console.print(f"  Renamed JS file: {original_js.name} -> {new_js.name}")
+    else:
+        console.print(f"[yellow]  Warning: JS file not found: {original_js}[/]")
 
 
 def _rename_root_directory(
