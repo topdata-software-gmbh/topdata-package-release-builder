@@ -212,6 +212,10 @@ def _perform_global_replacement(
     # File extensions to process
     extensions = {'.php', '.xml', '.js', '.twig', '.json', '.yml', '.yaml', '.md'}
     
+    # Also replace kebab-case variants used in asset paths and attributes
+    original_kebab = string_utils.camel_to_kebab_for_js_asset(original_name)
+    new_kebab = string_utils.camel_to_kebab_for_js_asset(new_name)
+    
     files_processed = 0
     replacements_made = 0
     
@@ -238,6 +242,9 @@ def _perform_global_replacement(
                     f"Topdata/{original_name}",
                     f"Topdata/{new_name}"
                 )
+
+                # Replace kebab-case asset references
+                content = content.replace(original_kebab, new_kebab)
                 
                 if content != original_content:
                     with open(file_path, 'w', encoding='utf-8') as f:
@@ -264,30 +271,50 @@ def _rename_storefront_js_assets(
         console.print(f"[yellow]  Warning: JS dist directory not found: {js_dist_dir}[/]")
         return
     
-    # Convert names to kebab-case for directory naming
-    original_kebab = string_utils.camel_to_kebab_for_js_asset(original_name)
+    # Determine target directory dynamically by scanning for subdirectories
+    subdirs = [d for d in js_dist_dir.iterdir() if d.is_dir()]
+    if len(subdirs) != 1:
+        console.print(
+            f"[yellow]  Warning: Could not uniquely identify JS asset directory in: {js_dist_dir} (found {len(subdirs)} subdirectories). Skipping JS asset renaming.[/]"
+        )
+        return
+
+    detected_dir = subdirs[0]
+    prev_dir_name = detected_dir.name
+    
+    # Calculate the new kebab-case directory name from the new plugin name
     new_kebab = string_utils.camel_to_kebab_for_js_asset(new_name)
-    
-    # Rename directory
-    original_dir = js_dist_dir / original_kebab
     new_dir = js_dist_dir / new_kebab
-    
-    if original_dir.exists():
-        original_dir.rename(new_dir)
-        console.print(f"  Renamed JS directory: {original_dir.name} -> {new_dir.name}")
+
+    # Rename the directory if needed
+    if detected_dir != new_dir:
+        detected_dir.rename(new_dir)
+        console.print(f"  Renamed JS directory: {prev_dir_name} -> {new_dir.name}")
     else:
-        console.print(f"[bold yellow]  Warning: Original JS directory not found. Looked for: {original_dir}[/bold yellow]")
-        return  # Exit if directory was not found
-    
-    # Rename JS file
-    original_js_in_new_dir = new_dir / f"{original_kebab}.js"
-    new_js = new_dir / f"{new_kebab}.js"
-    
-    if original_js_in_new_dir.exists():
-        original_js_in_new_dir.rename(new_js)
-        console.print(f"  Renamed JS file: {original_js_in_new_dir.name} -> {new_js.name}")
+        console.print(f"  JS directory already named: {new_dir.name}")
+
+    # Rename the primary JS file within the directory
+    candidate_js = new_dir / f"{prev_dir_name}.js"
+    target_js = new_dir / f"{new_kebab}.js"
+
+    if candidate_js.exists() and candidate_js != target_js:
+        candidate_js.rename(target_js)
+        console.print(f"  Renamed JS file: {candidate_js.name} -> {target_js.name}")
+        return
+
+    # Fallback: if there is exactly one JS file, treat it as the primary and rename it
+    js_files = list(new_dir.glob("*.js"))
+    if len(js_files) == 1:
+        src_js = js_files[0]
+        if src_js != target_js:
+            src_js.rename(target_js)
+            console.print(f"  Renamed JS file: {src_js.name} -> {target_js.name}")
+        else:
+            console.print(f"  JS file already named: {target_js.name}")
+    elif len(js_files) == 0:
+        console.print(f"[yellow]  Warning: No JS files found in: {new_dir}[/]")
     else:
-        console.print(f"[yellow]  Warning: JS file not found in new directory: {original_js_in_new_dir}[/]")
+        console.print(f"[yellow]  Warning: Multiple JS files found in: {new_dir}. Skipping JS file rename.[/]")
 
 
 def _rename_root_directory(
