@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional
 import shutil
 
 from rich.console import Console
+from . import string_utils
 
 
 def transform_to_variant(
@@ -117,7 +118,7 @@ def _modify_composer_json(
             if len(parts) == 2:
                 package_name = parts[1]
                 # Convert camelCase to kebab-case for package name
-                kebab_name = _camel_to_kebab(new_name)
+                kebab_name = string_utils.camel_to_kebab_for_composer(new_name)
                 composer_data['name'] = f"{parts[0]}/{kebab_name}"
     
     # Modify extra fields
@@ -129,20 +130,20 @@ def _modify_composer_json(
             if isinstance(extra['label'], dict):
                 # Handle multilingual labels
                 for lang, label in extra['label'].items():
-                    extra['label'][lang] = _prepend_variant_text(label, prefix, suffix)
+                    extra['label'][lang] = string_utils.prepend_variant_text(label, prefix, suffix)
             else:
                 # Handle single string label
-                extra['label'] = _prepend_variant_text(str(extra['label']), prefix, suffix)
+                extra['label'] = string_utils.prepend_variant_text(str(extra['label']), prefix, suffix)
         
         # Modify description
         if 'description' in extra:
             if isinstance(extra['description'], dict):
                 # Handle multilingual descriptions
                 for lang, desc in extra['description'].items():
-                    extra['description'][lang] = _prepend_variant_text(desc, prefix, suffix)
+                    extra['description'][lang] = string_utils.prepend_variant_text(desc, prefix, suffix)
             else:
                 # Handle single string description
-                extra['description'] = _prepend_variant_text(str(extra['description']), prefix, suffix)
+                extra['description'] = string_utils.prepend_variant_text(str(extra['description']), prefix, suffix)
         
         # Modify shopware-plugin-class
         if 'shopware-plugin-class' in extra:
@@ -153,10 +154,10 @@ def _modify_composer_json(
         if isinstance(composer_data['description'], dict):
             # Handle multilingual root descriptions
             for lang, desc in composer_data['description'].items():
-                composer_data['description'][lang] = _prepend_variant_text(desc, prefix, suffix)
+                composer_data['description'][lang] = string_utils.prepend_variant_text(desc, prefix, suffix)
         else:
             # Handle single string root description
-            composer_data['description'] = _prepend_variant_text(
+            composer_data['description'] = string_utils.prepend_variant_text(
                 str(composer_data['description']), prefix, suffix
             )
     
@@ -178,31 +179,6 @@ def _modify_composer_json(
     # Save the modified composer.json
     with open(composer_path, 'w', encoding='utf-8') as f:
         json.dump(composer_data, f, indent=4, ensure_ascii=False)
-
-
-def _camel_to_kebab(camel_str: str) -> str:
-    """Convert camelCase string to kebab-case."""
-    # Handle acronyms and special cases
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', camel_str)
-    s2 = re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1)
-    return s2.lower()
-
-
-def _prepend_variant_text(text: str, prefix: str, suffix: str) -> str:
-    """Prepend prefix/suffix to text in a consistent format."""
-    variant_text = ""
-    
-    if prefix:
-        variant_text += f"[{prefix.upper()}] "
-    
-    if suffix:
-        variant_text += f"[{suffix.upper()}] "
-    
-    # Remove existing variant markers if they exist
-    text = re.sub(r'^\[[A-Z]+\]\s*', '', text)
-    text = re.sub(r'^\[[A-Z]+\]\s*\[[A-Z]+\]\s*', '', text)
-    
-    return variant_text + text
 
 
 def _rename_main_php_file(
@@ -275,14 +251,6 @@ def _perform_global_replacement(
     console.print(f"  Processed {files_processed} files with replacements")
 
 
-def _camel_to_kebab(name: str) -> str:
-    """Convert CamelCase to kebab-case."""
-    # Handle consecutive uppercase letters (like SW6)
-    s1 = re.sub('([A-Z][a-z])', r'-\1', name)
-    s2 = re.sub('([a-z])([A-Z])', r'\1-\2', s1)
-    return s2.strip('-').lower()
-
-
 def _rename_storefront_js_assets(
     plugin_dir: Path,
     original_name: str,
@@ -297,8 +265,8 @@ def _rename_storefront_js_assets(
         return
     
     # Convert names to kebab-case for directory naming
-    original_kebab = _camel_to_kebab(original_name)
-    new_kebab = _camel_to_kebab(new_name)
+    original_kebab = string_utils.camel_to_kebab_for_js_asset(original_name)
+    new_kebab = string_utils.camel_to_kebab_for_js_asset(new_name)
     
     # Rename directory
     original_dir = js_dist_dir / original_kebab
@@ -308,17 +276,18 @@ def _rename_storefront_js_assets(
         original_dir.rename(new_dir)
         console.print(f"  Renamed JS directory: {original_dir.name} -> {new_dir.name}")
     else:
-        console.print(f"[yellow]  Warning: JS directory not found: {original_dir}[/]")
+        console.print(f"[bold yellow]  Warning: Original JS directory not found. Looked for: {original_dir}[/bold yellow]")
+        return  # Exit if directory was not found
     
     # Rename JS file
-    original_js = new_dir / f"{original_kebab}.js"
+    original_js_in_new_dir = new_dir / f"{original_kebab}.js"
     new_js = new_dir / f"{new_kebab}.js"
     
-    if original_js.exists():
-        original_js.rename(new_js)
-        console.print(f"  Renamed JS file: {original_js.name} -> {new_js.name}")
+    if original_js_in_new_dir.exists():
+        original_js_in_new_dir.rename(new_js)
+        console.print(f"  Renamed JS file: {original_js_in_new_dir.name} -> {new_js.name}")
     else:
-        console.print(f"[yellow]  Warning: JS file not found: {original_js}[/]")
+        console.print(f"[yellow]  Warning: JS file not found in new directory: {original_js_in_new_dir}[/]")
 
 
 def _rename_root_directory(
