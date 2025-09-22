@@ -16,17 +16,22 @@ def camel_to_kebab_for_composer(camel_str: str) -> str:
 def camel_to_kebab_for_js_asset(name: str) -> str:
     """
     Convert CamelCase to kebab-case, correctly handling acronyms and numbers for JS assets.
-    Example: 'TopdataCategorySW6' -> 'topdata-category-s-w-6'
+    Example: 'TopdataCategoryFilterSW6' -> 'topdata-category-filter-s-w6'
     """
-    # Insert hyphen before uppercase letter followed by lowercase (e.g., Plugin -> -Plugin)
-    name = re.sub(r'([A-Z])([a-z])', r'-\1\2', name)
-    # Insert hyphen before uppercase letter preceded by a non-uppercase char (e.g., myPlugin -> my-Plugin)
+    # 1. Insert a hyphen before any uppercase letter that is preceded by a lowercase letter or a digit.
+    # Example: 'Topdata' -> 'Topdata', 'FilterSW6' -> 'Filter-SW6'
     name = re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', name)
-    # Insert hyphen between letters and numbers (e.g., SW6 -> SW-6)
-    name = re.sub(r'([A-Z])([0-9])', r'\1-\2', name)
-    # Insert hyphen between consecutive uppercase letters (e.g., SW -> S-W)
-    name = re.sub(r'([A-Z])([A-Z])', r'\1-\2', name)
-    return name.lstrip('-').lower()
+
+    # 2. Insert a hyphen before any uppercase letter that is followed by a lowercase letter,
+    # but is preceded by another uppercase letter (handles acronyms followed by words).
+    # Example: 'MySWPlugin' -> 'My-SW-Plugin'
+    name = re.sub(r'([A-Z])([A-Z][a-z])', r'\1-\2', name)
+
+    # 3. Insert a hyphen between consecutive uppercase letters ONLY if they are NOT followed by a number.
+    # This correctly handles 'SW' -> 'S-W' but leaves 'W6' untouched.
+    name = re.sub(r'([A-Z])([A-Z])(?![0-9])', r'\1-\2', name)
+
+    return name.lower()
 
 
 def prepend_variant_text(text: str, prefix: str, suffix: str) -> str:
