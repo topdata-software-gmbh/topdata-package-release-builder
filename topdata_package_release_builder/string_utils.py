@@ -27,9 +27,9 @@ def camel_to_kebab_for_js_asset(name: str) -> str:
     # Example: 'MySWPlugin' -> 'My-SW-Plugin'
     name = re.sub(r'([A-Z])([A-Z][a-z])', r'\1-\2', name)
 
-    # 3. Insert a hyphen between consecutive uppercase letters ONLY if they are NOT followed by a number.
-    # This correctly handles 'SW' -> 'S-W' but leaves 'W6' untouched.
-    name = re.sub(r'([A-Z])([A-Z])(?![0-9])', r'\1-\2', name)
+    # 3. Insert a hyphen between consecutive uppercase letters.
+    # This correctly handles 'SW' -> 'S-W' and 'W6' -> 'W6' (as it's handled by the previous regex).
+    name = re.sub(r'([A-Z])([A-Z])', r'\1-\2', name)
 
     return name.lower()
 
