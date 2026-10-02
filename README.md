@@ -9,11 +9,11 @@ For detailed instructions on installation, configuration, and usage, please see 
 ## Key Features
 
 - **Automated Packaging:** Creates release-ready ZIP archives of Shopware 6 plugins.
-- **Intelligent File Exclusion:** Excludes development files based on `.gitignore` rules and a custom `.sw-zip-blacklist` file.
+- **Intelligent File Exclusion:** Excludes development files using a built-in pattern list plus a custom `.sw-zip-blacklist` file.
 - **Interactive & Automated Versioning:** Bumps the plugin version in `composer.json`, and automatically commits and tags the change in Git. Can be controlled via interactive prompt or CLI flags.
 - **Foundation Code Injection:** Automatically detects if `TopdataFoundationSW6` is a dependency and injects the necessary code, making the plugin self-contained.
 - **Plugin Variant Creation:** Generates renamed variants of a plugin (e.g., a "Free" version) by transforming namespaces, metadata, and class names using `--variant-prefix` and `--variant-suffix` flags.
-- **Asset Verification:** Ensures that compiled storefront and administration assets (JS/CSS) are up-to-date before building.
+- **Asset Verification:** Verifies compiled storefront and administration assets (JS/CSS) against their sources by SHA-256 content hash, so a release cannot ship stale or entirely missing compiled output.
 - **Deployment & Notifications:**
     - Optionally syncs the built package to a remote server using `rsync`.
     - Optionally sends a release notification to a Slack channel with a download link.

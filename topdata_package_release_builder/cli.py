@@ -10,20 +10,18 @@ from InquirerPy import inquirer  # Needed for staging confirmation
 
 from .config import load_env, get_remote_config, get_release_dir, get_manuals_dir, get_docs_generator_project_path
 from .git import (
-    get_git_info, check_git_status, stage_changes, commit_and_tag, push_changes,
-    pull_changes_in_repo, commit_and_push_changes, is_git_repository
+    get_git_info, check_git_status, stage_changes, pull_changes_in_repo, commit_and_push_changes, is_git_repository
 )
 from .plugin import (
     get_plugin_info,
     copy_plugin_files,
     create_archive,
-    verify_compiled_files,
     has_foundation_dependency,
 )
+from .assets import verify_assets
 from .release import create_release_info
 from .remote import sync_to_remote
 from .slack import send_release_notification
-from .version import VersionBump  # Only needed for type reference
 from .manual import copy_manuals
 from .workflow import handle_versioning_workflow
 from .variant import transform_to_variant
@@ -85,18 +83,24 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--notify-slack', '-s', is_flag=True, help='Send notification to Slack after successful upload')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--with-foundation', is_flag=True, help='Force injection of TopdataFoundationSW6 code even if plugin does not declare it as dependency.')
-@click.option('--debug', is_flag=True, help='Enable debug output for timestamp verification')
+@click.option('--require-compiled-assets', is_flag=True, help='Abort when an asset target has sources but no compiled output. Off by default because most Topdata plugins ship hand-written Twig/CSS with no build step at all.')
+@click.option('--debug', is_flag=True, help='Enable debug output for asset verification')
 @click.option('--version-increment', type=click.Choice(['none', 'patch', 'minor', 'major']), help='Specify the version increment method (none, patch, minor, major). Skips interactive prompt.')
 @click.option('--variant-prefix', default=None, help='Add a prefix to create a renamed variant package (e.g., "Free").')
 @click.option('--variant-suffix', default=None, help='Add a suffix to create a renamed variant package.')
-def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, version_increment, variant_prefix, variant_suffix):
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, require_compiled_assets, version_increment, variant_prefix, variant_suffix):
     zip_file_rsync_path = None
     """
     Build and package Shopware 6 plugin for release.
 
-    Automatically excludes files matching patterns from:
-    - .gitignore files in each directory
-    - .sw-zip-blacklist in the plugin root
+    Automatically excludes files matching a built-in ignore list, plus the
+    patterns listed in .sw-zip-blacklist in the plugin root.
+
+    Compiled assets (JS/SCSS in src/Resources/app) are verified against
+    src/Resources/public by content hash, not by timestamp. Targets with
+    sources but no compiled output are reported; they only abort the build
+    for plugins that demonstrably compile assets, or with
+    --require-compiled-assets.
 
     Options:
     - --source-dir: Specify plugin source directory (default: current directory)
@@ -165,17 +169,31 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
             branch, commit = get_git_info(source_dir=source_dir, verbose=verbose, console=console)
 
             # ------------------------------------------------------------------
-            # Verify timestamps of compiled assets
+            # Verify compiled assets against their sources (content hashes)
             # ------------------------------------------------------------------
-            status.update("[bold blue]Verifying compiled files...")
-            if not verify_compiled_files(
-                    source_dir,
-                    verbose=verbose,
-                    debug=debug,
-                    console=console,
-            ):
-                console.print("[bold red]Build aborted due to outdated compiled files[/]")
+            status.update("[bold blue]Verifying compiled assets...")
+            assets = verify_assets(
+                source_dir,
+                strict=require_compiled_assets,
+                verbose=verbose,
+                debug=debug,
+                console=console,
+            )
+            for warning in assets.warnings:
+                console.print(f"[yellow]Warning:[/] {warning}")
+            if not assets.ok:
+                console.print("[bold red]Error: Compiled assets are not release-ready[/]")
+                for err in assets.errors:
+                    console.print(f"- {err}")
+                console.print("[bold red]Build aborted[/]")
                 raise click.Abort()
+            if assets.manifest_written:
+                if verbose:
+                    console.print(
+                        f"[green]✓ Verified {len(assets.targets)} asset target(s) by content hash[/]"
+                    )
+            elif verbose:
+                console.print("[dim]→ No compiled assets to verify[/]")
 
             status.update("[bold blue]Reading plugin information...")
             plugin_name, version, original_version = get_plugin_info(source_dir=source_dir, verbose=verbose, console=console)
@@ -208,7 +226,14 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                 # --- END INJECTION STEP ---
 
                 status.update("[bold blue]Creating release info...")
-                release_info = create_release_info(plugin_name, branch, commit, version, verbose=verbose, console=console, table_style="panel")
+                # "default" (not "panel") is required: the consuming
+                # package-service parses Branch/Commit ID/Created out of this
+                # file, and the borderless style is not machine-readable.
+                release_info = create_release_info(
+                    plugin_name, branch, commit, version,
+                    verbose=verbose, console=console,
+                    assets={'targets': assets.targets, 'toolchain': assets.toolchain},
+                )
                 print(release_info)
                 with open(os.path.join(plugin_dir, 'release_info.txt'), 'w') as f:
                     f.write(str(release_info))
@@ -291,7 +316,9 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                             console=console
                         )
                         
-                        # Create release info for variant
+                        # Create release info for variant. The variant is a
+                        # rename of the already-verified main package, so it
+                        # inherits the same asset provenance.
                         variant_release_info = create_release_info(
                             variant_name,
                             branch,
@@ -299,7 +326,7 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                             version,
                             verbose=verbose,
                             console=console,
-                            table_style="panel"
+                            assets={'targets': assets.targets, 'toolchain': assets.toolchain},
                         )
                         print(variant_release_info)
                         with open(os.path.join(variant_temp_dir, variant_name, 'release_info.txt'), 'w') as f:
@@ -361,13 +388,13 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
 
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}", style="red")
-        raise click.Abort()
+        raise click.Abort() from e
 
 def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status=None, variant_info=None):
     """Display success message after build completion."""
     sync_message = ""
     if zip_file_rsync_path:
-        sync_message = f"\n[green]Successfully synced to remote server[/]"
+        sync_message = "\n[green]Successfully synced to remote server[/]"
         sync_message += f"\n[green]DL: {_get_download_url(zip_file_rsync_path)}[/]"
     else:
         sync_message = "\n[yellow]Remote sync was disabled[/]"
@@ -384,18 +411,18 @@ def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_r
     
     docs_message = ""
     if docs_generator_path and manuals_dir:
-        docs_message = f"\n\n[bold blue]Documentation Setup:[/]"
+        docs_message = "\n\n[bold blue]Documentation Setup:[/]"
         docs_message += f"\n[green]✓ Docs generator: {docs_generator_path}[/]"
         docs_message += f"\n[green]✓ Manuals directory: {manuals_dir}[/]"
         docs_message += f"\n[dim]Run: cd {docs_generator_path} && ./deploy/deploy.sh[/]"
     elif manuals_dir:
-        docs_message = f"\n\n[bold yellow]Documentation Setup:[/]"
+        docs_message = "\n\n[bold yellow]Documentation Setup:[/]"
         docs_message += f"\n[green]✓ Manuals directory: {manuals_dir}[/]"
-        docs_message += f"\n[yellow]⚠ Docs generator not configured[/]"
+        docs_message += "\n[yellow]⚠ Docs generator not configured[/]"
     elif docs_generator_path:
-        docs_message = f"\n\n[bold yellow]Documentation Setup:[/]"
+        docs_message = "\n\n[bold yellow]Documentation Setup:[/]"
         docs_message += f"\n[green]✓ Docs generator: {docs_generator_path}[/]"
-        docs_message += f"\n[yellow]⚠ Manuals directory not configured[/]"
+        docs_message += "\n[yellow]⚠ Manuals directory not configured[/]"
         docs_message += f"\n[dim]Run: cd {docs_generator_path} && ./deploy/deploy.sh[/]"
 
     # Build main package info
@@ -411,7 +438,7 @@ Location: {output_dir}/{zip_name}{sync_message}"""
     if variant_info:
         variant_sync_message = ""
         if variant_info['zip_file_rsync_path']:
-            variant_sync_message = f"\n[green]Successfully synced to remote server[/]"
+            variant_sync_message = "\n[green]Successfully synced to remote server[/]"
             variant_sync_message += f"\n[green]DL: {_get_download_url(variant_info['zip_file_rsync_path'])}[/]"
         
         variant_package_info = f"""

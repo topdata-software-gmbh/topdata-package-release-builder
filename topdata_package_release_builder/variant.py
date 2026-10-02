@@ -8,8 +8,6 @@ modified identity (name, namespace, FQCN) based on provided prefix/suffix.
 import json
 import re
 from pathlib import Path
-from typing import Dict, Any, Optional
-import shutil
 
 from rich.console import Console
 from . import string_utils
@@ -35,13 +33,12 @@ def transform_to_variant(
     Returns:
         The new transformed plugin name
     """
-    console.print(f"[bold blue]Transforming plugin to variant...[/]")
+    console.print("[bold blue]Transforming plugin to variant...[/]")
     
     # Calculate new identity
     new_name = _calculate_new_name(original_name, prefix, suffix)
     original_namespace = f"Topdata\\{original_name}"
     new_namespace = f"Topdata\\{new_name}"
-    original_fqcn = f"Topdata\\{original_name}\\{original_name}"
     new_fqcn = f"Topdata\\{new_name}\\{new_name}"
     
     console.print(f"  Original name: {original_name}")
@@ -116,7 +113,6 @@ def _modify_composer_json(
             # Replace the last part after slash with prefixed version
             parts = original_name.split('/')
             if len(parts) == 2:
-                package_name = parts[1]
                 # Convert camelCase to kebab-case for package name
                 kebab_name = string_utils.camel_to_kebab_for_composer(new_name)
                 composer_data['name'] = f"{parts[0]}/{kebab_name}"

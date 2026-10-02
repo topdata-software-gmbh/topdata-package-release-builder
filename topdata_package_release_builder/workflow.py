@@ -7,10 +7,7 @@ argument parsing and high-level orchestration.
 """
 from InquirerPy import inquirer
 
-from .config import get_manuals_dir
-from .git import (commit_and_tag, push_changes, is_git_repository,
-                  pull_changes_in_repo, commit_and_push_changes)
-from .manual import copy_manuals
+from .git import (commit_and_tag, push_changes)
 from .version import VersionBump, bump_version, update_composer_version
 
 
@@ -27,10 +24,6 @@ def handle_versioning_workflow(
     Handles the user interaction for version bumping, updates files, and commits to git.
     Returns the selected version string (without 'v' prefix).
     """
-    from .version import get_major_version
-    
-    major_version = get_major_version(original_version)
-    
     version_choice = None
     if version_increment_cli:
         if version_increment_cli == 'patch':

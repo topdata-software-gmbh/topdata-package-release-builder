@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 import subprocess
 import time
 from pathlib import Path
@@ -11,7 +10,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.panel import Panel
 from rich.table import Table
 from rich.syntax import Syntax
-from rich.markdown import Markdown
 
 console = Console()
 

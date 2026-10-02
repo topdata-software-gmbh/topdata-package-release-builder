@@ -25,7 +25,7 @@ import re
 import shutil
 from pathlib import Path
 from typing import Dict, Set
-from xml.dom.minidom import Document, Element, parse
+from xml.dom.minidom import Element, parse
 
 OLD_NAMESPACE_BASE = 'Topdata\\TopdataFoundationSW6'
 

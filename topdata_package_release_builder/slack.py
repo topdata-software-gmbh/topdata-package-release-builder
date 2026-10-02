@@ -1,6 +1,4 @@
 """Slack notification module for plugin releases."""
-import json
-import os
 from typing import Dict, Optional
 
 import requests
@@ -90,7 +88,7 @@ def send_release_notification(
 
     try:
         if verbose and console:
-            console.print(f"[dim]→ Sending Slack notification to webhook...[/]")
+            console.print("[dim]→ Sending Slack notification to webhook...[/]")
             
         response = requests.post(
             webhook_url,

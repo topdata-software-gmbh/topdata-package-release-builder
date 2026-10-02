@@ -20,7 +20,7 @@ Dies löst den folgenden Prozess aus:
 3.  Lesen der `composer.json`, um den Plugin-Namen und die aktuelle Version zu erhalten.
 4.  Anzeige einer interaktiven Abfrage zur Auswahl einer Versionserhöhung (Major, Minor, Patch oder Keine).
 5.  Wenn eine Versionserhöhung ausgewählt wird, wird die `composer.json` aktualisiert, die Änderung committet, ein Git-Tag erstellt und beides zum Remote gepusht.
-6.  Kopieren aller notwendigen Plugin-Dateien in ein temporäres Verzeichnis, wobei in `.sw-zip-blacklist` und `.gitignore` spezifizierte Dateien ausgeschlossen werden.
+6.  Kopieren aller notwendigen Plugin-Dateien in ein temporäres Verzeichnis, wobei die eingebauten Entwicklungsmuster und alles aus `.sw-zip-blacklist` ausgeschlossen werden.
 7.  Erstellen einer `release_info.txt`-Datei innerhalb des Pakets.
 8.  Erstellen des finalen ZIP-Archivs im in Ihrer `.env`-Datei definierten `RELEASE_DIR`.
 9.  Ausführung optionaler Schritte nach dem Build wie das Veröffentlichen von Handbüchern, Remote-Sync und Slack-Benachrichtigungen, falls konfiguriert.
@@ -40,7 +40,8 @@ Der Build-Prozess kann mit den folgenden Optionen angepasst werden:
 | `--variant-suffix <str>`| Erstellt eine umbenannte Variante des Plugins mit dem angegebenen Suffix (z. B. "Pro").                       |
 | `--with-foundation`    | Erzwingt die Injektion von `TopdataFoundationSW6`-Code, unabhängig von der `composer.json`-Abhängigkeit.     |
 | `-v`, `--verbose`      | Aktiviert eine detaillierte, schrittweise Ausgabe des Build-Prozesses zum Debuggen.                           |
-| `--debug`              | Aktiviert zusätzliche Debug-Ausgaben, insbesondere für die Zeitstempel-Überprüfung kompilierter Assets.      |
+| `--require-compiled-assets` | Bricht den Build ab, wenn ein Asset-Target Quellen, aber kein kompiliertes Ergebnis hat. Standardmäßig aus, da die meisten Topdata-Plugins handgeschriebenes Twig/CSS ohne Build-Schritt ausliefern. |
+| `--debug`              | Aktiviert zusätzliche Debug-Ausgaben, insbesondere für die Asset-Überprüfung (gibt die Inhalts-Hashes jeder Entscheidung aus). |
 
 ### Beispiel
 
@@ -57,7 +58,29 @@ sw-build --version-increment patch --variant-prefix Free --notify-slack
 Das Tool schließt automatisch Dateien aus, die nicht für ein Produktions-Release vorgesehen sind. Die Ausschlussregeln stammen aus:
 1.  Einer fest kodierten Liste gängiger Entwicklungsmuster (z. B. `.git`, `node_modules`, `tests`).
 2.  Einer `.sw-zip-blacklist`-Datei im Hauptverzeichnis Ihres Plugins. Jede Zeile in dieser Datei wird als Ausschlussmuster behandelt. Kommentare können mit `#` hinzugefügt werden.
-3.  Allen `.gitignore`-Dateien, die in der Verzeichnisstruktur des Plugins gefunden werden.
+
+> **Hinweis:** `.gitignore`-Dateien werden **nicht** ausgewertet. Kompilierte Dateien unter `src/Resources/public/` sind normalerweise gitignored, und `.gitignore` zu befolgen würde genau diese Dateien aus dem Paket entfernen. Nutzen Sie `.sw-zip-blacklist`, um weitere Pfade auszuschließen.
+
+### Asset-Überprüfung
+
+Kompilierte Assets werden über **SHA-256-Inhalts-Hashes** geprüft, nicht über Dateizeitstempel. Clone, Pull und rsync schreiben die Änderungszeiten neu, ein Zeitstempelvergleich liefert also gerade für die Checkouts, die nie von Hand kompiliert wurden, eine willkürliche Antwort.
+
+Geprüft werden drei Asset-Targets, jeweils Source-Verzeichnis und erwartete Ausgabe:
+
+| Target | Quellen | Kompilierte Ausgabe |
+|---|---|---|
+| Administration JS | `src/Resources/app/administration/src` (`*.ts`, `*.js`) | `src/Resources/public/administration/js` |
+| Storefront JS | `src/Resources/app/storefront/src` (`*.ts`, `*.js`) | `src/Resources/public/storefront/js` |
+| Storefront CSS | `src/Resources/app/storefront/src` (`*.scss`, `*.css`) | `src/Resources/public/storefront/css` |
+
+Ein Target mit Quellen, aber **ohne** kompilierte Ausgabe ist:
+
+- ein **Fehler**, wenn das Plugin bereits kompilierte Assets ausliefert (wer kompiliert, muss alle Seiten kompilieren, für die Quellen existieren), oder wenn `--require-compiled-assets` gesetzt ist;
+- andernfalls eine **Warnung** — die meisten Topdata-Plugins haben handgeschriebene `.js`/`.scss` unter `Resources/app` und gar keinen Build-Schritt; deren Release zu blockieren wäre falsch.
+
+Nach einer **erfolgreichen** Prüfung werden die Quell- und Ausgabe-Hashes in `.git/sw-build/<plugin>/.sw-build-assets.json` festgehalten. Dieses Manifest ist **lokaler Zustand**: Es liegt im Git-Verzeichnis, erreicht also nie das Release-ZIP, wird von `git status` nie gesehen und kann nicht mit dem Checkout eines anderen Entwicklers kollidieren. Der erste Build in einem frischen Checkout legt eine Basislinie an; jeder spätere Build in demselben Checkout wird dagegen geprüft, und eine Änderung an einer Asset-Quelle ohne erneutes Kompilieren bricht den Release ab. Eine **fehlgeschlagene** Prüfung lässt die vorherige Basislinie unverändert, damit ein ignorierter Fehler niemals veraltete Ausgaben freigibt.
+
+Der in `release_info.txt` geschriebene und mitgelieferte Datensatz enthält ebenfalls den Asset-Status, die erkannte Node-Version und den Lockfile-Digest.
 
 ### Foundation Plugin Injection
 

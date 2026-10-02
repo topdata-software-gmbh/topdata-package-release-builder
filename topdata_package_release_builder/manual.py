@@ -40,7 +40,7 @@ def copy_manuals(plugin_name: str, version: str, manuals_dir: str, plugin_source
                 capture_output=True,
                 text=True
             )
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             # Fallback to shutil if rsync fails
             shutil.copytree(source_dir, target_dir)
         if verbose and console:

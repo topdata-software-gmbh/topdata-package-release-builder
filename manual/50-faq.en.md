@@ -3,11 +3,17 @@ title: FAQ
 ---
 # Frequently Asked Questions
 
-**Q: My build failed with an "Error: Compiled files are outdated" message. What should I do?**
+**Q: My build failed with "Compiled assets are not release-ready". What should I do?**
 
-A: This error means that your plugin's source asset files (like `.js`, `.ts`, or `.scss` in `src/Resources/app/`) are newer than the compiled output files (in `src/Resources/public/`). This usually happens when you've made changes to the source but haven't run the Shopware build command.
+A: `sw-build` compares your asset sources with the compiled output by **content hash**, not by timestamp. Two situations produce this error:
 
-To fix this, run the appropriate build command from your Shopware root directory and then try the `sw-build` command again.
+1. *An asset target has sources but no compiled output at all* — and your plugin already ships compiled assets elsewhere, so it clearly is supposed to compile. You have changed a source and not rebuilt.
+2. *The sources changed since the last verified build in this checkout* — you edited a source and have not recompiled since.
+
+In both cases, run your asset build and run `sw-build` again.
+
+If you see this for a plugin that genuinely has no build step at all, that is a `--require-compiled-assets` build; drop the flag for such plugins.
+
 ```bash
 # For administration assets
 ./bin/build-administration.sh

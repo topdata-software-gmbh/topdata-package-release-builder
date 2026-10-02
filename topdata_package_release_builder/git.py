@@ -134,7 +134,7 @@ def commit_and_push_changes(repo_path: str, commit_message: str, verbose: bool =
         subprocess.check_output(['git', 'commit', '-m', commit_message])
         
         if verbose and console:
-            console.print(f"[dim]→ Pushing changes to remote...[/]")
+            console.print("[dim]→ Pushing changes to remote...[/]")
         subprocess.check_output(['git', 'push'])
         
         if console:

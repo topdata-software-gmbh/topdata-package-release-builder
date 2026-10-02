@@ -7,7 +7,7 @@ Follow these steps to install the `sw-build` tool on your local development mach
 
 ## Prerequisites
 
-- Python 3.8 or newer.
+- Python 3.10 or newer.
 - `git` installed and available in your system's PATH.
 - `uv` (recommended) or `pip` for Python package management.
 - `rsync` (required for the remote sync feature).
