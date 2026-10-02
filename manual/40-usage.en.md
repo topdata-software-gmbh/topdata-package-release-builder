@@ -41,6 +41,7 @@ The build process can be customized with the following options:
 | `--with-foundation`    | Forces the injection of `TopdataFoundationSW6` code, regardless of the `composer.json` dependency.          |
 | `-v`, `--verbose`      | Enables detailed, step-by-step output of the build process for debugging.                                   |
 | `--require-compiled-assets` | Aborts the build when an asset target has sources but no compiled output. Off by default because most Topdata plugins ship hand-written Twig/CSS with no build step. |
+| `--rebaseline-assets`    | Discards the stored asset baseline and records the current one without comparing. Escape hatch for a source edit that legitimately produces byte-identical output. |
 | `--debug`              | Enables extra debug output, particularly for asset verification (prints the content digests behind each decision). |
 
 ### Example
@@ -75,8 +76,19 @@ Three asset targets are checked, each pairing a source directory with the output
 
 A target with sources but **no** compiled output is:
 
-- an **error** if the plugin already ships any compiled asset (so a plugin that compiles must compile every side it has sources for), or if `--require-compiled-assets` is passed;
+- an **error** if another target of the same plugin *did* compile (so a plugin that compiles must compile every side it has sources for), or if `--require-compiled-assets` is passed;
 - a **warning** otherwise — most Topdata plugins have hand-written `.js`/`.scss` under `Resources/app` and no build step at all, and blocking their release would be wrong.
+
+Once a target has both sources and output, the two digests are compared against the baseline:
+
+| Sources | Output | Verdict |
+|---|---|---|
+| changed | unchanged | **Error** — the output cannot be a product of these sources. Recompile. |
+| changed | changed | Baseline advances. You rebuilt, so this is a normal release. |
+| unchanged | changed | Warning — compiled output moved without a source change. |
+| unchanged | unchanged | Verified. |
+
+The output digest is what makes this decidable: a rebuild must move the output. Checking only whether the sources changed would also reject a *correct* rebuild, and because the baseline never advances past an error, the checkout could never be released again. If a rebuild really does produce byte-identical output (for example a comment-only edit), use `--rebaseline-assets` to record the new baseline deliberately.
 
 After a **successful** verification the source and output digests are recorded in `.git/sw-build/<plugin>/.sw-build-assets.json`. This manifest is **local state**: it lives inside the git directory, so it never reaches the release ZIP, is never seen by `git status`, and cannot conflict with another developer's checkout. A first build in a fresh checkout records a baseline; every later build in that same checkout is checked against it, and editing an asset source without recompiling aborts the release. A **failed** verification leaves the previous baseline untouched, so an ignored error can never bless stale output.
 

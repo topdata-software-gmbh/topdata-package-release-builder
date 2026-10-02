@@ -329,6 +329,7 @@ def verify_assets(
     plugin_root: str,
     *,
     strict: bool = False,
+    rebaseline: bool = False,
     verbose: bool = False,
     debug: bool = False,
     console: Any = None,
@@ -341,6 +342,10 @@ def verify_assets(
             error. By default that is only an error when some *other* target
             of the same plugin did compile, because most Topdata plugins
             ship hand-written Twig and CSS and have no build at all.
+        rebaseline: Discard the stored baseline and record the current one
+            without comparing. The escape hatch for the case the check cannot
+            judge -- for example a source edit that legitimately produces
+            byte-identical output.
         verbose: Print per-target detail.
         debug: Print the digests behind every decision.
         console: Optional rich console for output.
@@ -396,20 +401,38 @@ def verify_assets(
         # ---- Compiled output exists: compare against the baseline ---------
         previous = previous_targets.get(target.name)
         stale = False
-        if not isinstance(previous, dict):
+        if rebaseline:
+            result.notes.append(
+                f'{target.label}: baseline reset on request'
+            )
+        elif not isinstance(previous, dict):
             result.notes.append(
                 f'{target.label}: recording first asset baseline for this checkout'
             )
         else:
             prev_src = (previous.get('sources') or {}).get('sha256')
             prev_out = (previous.get('output') or {}).get('sha256')
-            if prev_src and prev_src != src.sha256:
+            src_changed = bool(prev_src) and prev_src != src.sha256
+            out_changed = bool(prev_out) and prev_out != dist.sha256
+
+            # The output digest is the discriminator. A rebuild must move the
+            # output, so "sources changed but output identical" means the
+            # output cannot be a product of those sources. Checking only
+            # `src_changed` would also reject a *correct* rebuild and
+            # deadlock the checkout permanently, since the baseline is never
+            # allowed to advance past an error.
+            if src_changed and not out_changed:
                 stale = True
                 result.errors.append(
-                    f'{target.label}: asset sources changed since the last verified build '
-                    f'- recompile before releasing'
+                    f'{target.label}: asset sources changed but the compiled output did '
+                    f'not - recompile before releasing'
                 )
-            elif prev_out and prev_out != dist.sha256:
+            elif src_changed and out_changed:
+                result.notes.append(
+                    f'{target.label}: sources and compiled output both changed, '
+                    f'recording new baseline'
+                )
+            elif out_changed:
                 result.warnings.append(
                     f'{target.label}: compiled output changed without a source change since '
                     f'the last verified build'

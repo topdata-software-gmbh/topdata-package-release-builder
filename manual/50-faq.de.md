@@ -8,7 +8,7 @@ title: FAQ
 A: `sw-build` vergleicht Ihre Asset-Quellen mit der kompilierten Ausgabe per **Inhalts-Hash**, nicht per Zeitstempel. Zwei Situationen lösen diesen Fehler aus:
 
 1. *Ein Asset-Target hat Quellen, aber gar keine kompilierte Ausgabe* — und Ihr Plugin liefert an anderer Stelle bereits kompilierte Assets aus, es soll also kompilieren. Sie haben eine Quelle geändert ohne neu zu bauen.
-2. *Die Quellen haben sich seit dem letzten geprüften Build in diesem Checkout geändert* — Sie haben eine Quelle editiert und seither nicht neu kompiliert.
+2. *Die Quellen haben sich geändert, die kompilierte Ausgabe aber nicht* — Sie haben eine Quelle editiert und seither nicht neu kompiliert. Falls Sie **doch** neu kompiliert haben und der Fehler bleibt, war Ihr Neubau byte-identisch; einmal `--rebaseline-assets` setzen, um die Basislinie neu zu setzen.
 
 Führen Sie in beiden Fällen Ihren Asset-Build aus und starten Sie `sw-build` erneut.
 

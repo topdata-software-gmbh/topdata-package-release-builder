@@ -311,8 +311,12 @@ def test_unchanged_plugin_verifies_clean_on_second_run(tmp_path: Path) -> None:
     assert result.warnings == []
 
 
-def test_changed_sources_after_baseline_are_an_error(tmp_path: Path) -> None:
-    """The regression the mtime check could not see reliably."""
+def test_changed_sources_with_unchanged_output_are_an_error(tmp_path: Path) -> None:
+    """The regression the mtime check could not see reliably.
+
+    Sources moved but the compiled output did not, so the output cannot be a
+    product of those sources.
+    """
     root = _compiled_plugin(_plugin(tmp_path))
     verify_assets(root)
 
@@ -321,7 +325,7 @@ def test_changed_sources_after_baseline_are_an_error(tmp_path: Path) -> None:
     result = verify_assets(root)
 
     assert result.ok is False
-    assert any('sources changed since the last verified build' in e for e in result.errors)
+    assert any('compiled output did not' in e for e in result.errors)
 
 
 def test_changed_sources_detected_even_when_dist_is_newer(tmp_path: Path) -> None:
@@ -332,8 +336,8 @@ def test_changed_sources_detected_even_when_dist_is_newer(tmp_path: Path) -> Non
     verify_assets(root)
 
     _write(root / 'src/Resources/app/storefront/src/main.js', 'edited')
-    # Make the *compiled* file far newer, exactly as a rebuild would.
-    _write(root / 'src/Resources/public/storefront/js/bundle.js', 'js')
+    # Make the *compiled* file far newer, exactly as a rebuild would. Its
+    # content is unchanged, so a rebuild genuinely did not happen.
     os.utime(root / 'src/Resources/public/storefront/js/bundle.js', (9_000_000, 9_000_000))
 
     result = verify_assets(root)
@@ -443,7 +447,7 @@ def test_failed_verification_does_not_advance_baseline(tmp_path: Path) -> None:
 
     again = verify_assets(root)
     assert again.ok is False
-    assert any('sources changed' in e for e in again.errors)
+    assert any('compiled output did not' in e for e in again.errors)
 
 
 def test_baseline_survives_a_failed_run_unchanged(tmp_path: Path) -> None:
@@ -535,3 +539,76 @@ def test_compiled_targets_property(tmp_path: Path) -> None:
     root = _compiled_plugin(_plugin(tmp_path))
     result = verify_assets(root)
     assert set(result.compiled_targets) == {'storefront-js', 'storefront-css'}
+
+# ---------------------------------------------------------------------------
+# Recompiling must not deadlock the checkout
+# ---------------------------------------------------------------------------
+
+def test_correct_rebuild_advances_baseline_instead_of_deadlocking(tmp_path: Path) -> None:
+    """Regression: a correct rebuild was rejected forever.
+
+    "Sources changed" is also true after a *correct* rebuild, so checking only
+    that would reject it, and since the baseline never advances past an error
+    the checkout could never release again.
+    """
+    root = _compiled_plugin(_plugin(tmp_path))
+    verify_assets(root)
+
+    _write(root / 'src/Resources/app/storefront/src/main.js', 'edited')
+    _write(root / 'src/Resources/public/storefront/js/bundle.js', 'rebuilt')
+
+    result = verify_assets(root)
+
+    assert result.ok is True
+    assert result.manifest_written is True
+    # And it stays released from then on.
+    assert verify_assets(root).ok is True
+    assert verify_assets(root).ok is True
+
+
+def test_rebuild_then_edit_again_is_caught(tmp_path: Path) -> None:
+    """Advancing the baseline must not weaken the next check."""
+    root = _compiled_plugin(_plugin(tmp_path))
+    verify_assets(root)
+    _write(root / 'src/Resources/app/storefront/src/main.js', 'v2')
+    _write(root / 'src/Resources/public/storefront/js/bundle.js', 'js-v2')
+    verify_assets(root)
+
+    _write(root / 'src/Resources/app/storefront/src/main.js', 'v3')
+
+    result = verify_assets(root)
+
+    assert result.ok is False
+
+
+def test_rebaseline_escape_hatch_discards_the_baseline(tmp_path: Path) -> None:
+    """For the case the check genuinely cannot judge."""
+    root = _compiled_plugin(_plugin(tmp_path))
+    verify_assets(root)
+    _write(root / 'src/Resources/app/storefront/src/main.js', 'edited')
+
+    assert verify_assets(root).ok is False
+
+    forced = verify_assets(root, rebaseline=True)
+
+    assert forced.ok is True
+    assert forced.manifest_written is True
+    assert verify_assets(root).ok is True
+
+
+def test_rebaseline_records_new_digests(tmp_path: Path) -> None:
+    root = _compiled_plugin(_plugin(tmp_path))
+    verify_assets(root)
+    before = read_manifest(root)
+    _write(root / 'src/Resources/app/storefront/src/main.js', 'edited')
+
+    verify_assets(root, rebaseline=True)
+
+    assert read_manifest(root) != before
+
+
+def test_rebaseline_on_a_plugin_with_no_baseline_is_harmless(tmp_path: Path) -> None:
+    root = _compiled_plugin(_plugin(tmp_path))
+    result = verify_assets(root, rebaseline=True)
+    assert result.ok is True
+    assert result.manifest_written is True

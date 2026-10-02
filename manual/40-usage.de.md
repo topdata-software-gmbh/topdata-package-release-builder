@@ -41,6 +41,7 @@ Der Build-Prozess kann mit den folgenden Optionen angepasst werden:
 | `--with-foundation`    | Erzwingt die Injektion von `TopdataFoundationSW6`-Code, unabhängig von der `composer.json`-Abhängigkeit.     |
 | `-v`, `--verbose`      | Aktiviert eine detaillierte, schrittweise Ausgabe des Build-Prozesses zum Debuggen.                           |
 | `--require-compiled-assets` | Bricht den Build ab, wenn ein Asset-Target Quellen, aber kein kompiliertes Ergebnis hat. Standardmäßig aus, da die meisten Topdata-Plugins handgeschriebenes Twig/CSS ohne Build-Schritt ausliefern. |
+| `--rebaseline-assets`    | Verwirft die gespeicherte Asset-Basislinie und übernimmt die aktuelle ohne Vergleich. Ausstieg für Quelländerungen, die legitim byte-identische Ausgabe erzeugen. |
 | `--debug`              | Aktiviert zusätzliche Debug-Ausgaben, insbesondere für die Asset-Überprüfung (gibt die Inhalts-Hashes jeder Entscheidung aus). |
 
 ### Beispiel
@@ -75,8 +76,19 @@ Geprüft werden drei Asset-Targets, jeweils Source-Verzeichnis und erwartete Aus
 
 Ein Target mit Quellen, aber **ohne** kompilierte Ausgabe ist:
 
-- ein **Fehler**, wenn das Plugin bereits kompilierte Assets ausliefert (wer kompiliert, muss alle Seiten kompilieren, für die Quellen existieren), oder wenn `--require-compiled-assets` gesetzt ist;
+- ein **Fehler**, wenn ein anderes Target *desselben* Plugins kompiliert hat (wer kompiliert, muss alle Seiten kompilieren, für die Quellen existieren), oder wenn `--require-compiled-assets` gesetzt ist;
 - andernfalls eine **Warnung** — die meisten Topdata-Plugins haben handgeschriebene `.js`/`.scss` unter `Resources/app` und gar keinen Build-Schritt; deren Release zu blockieren wäre falsch.
+
+Sobald ein Target Quellen *und* Ausgabe hat, werden beide Hashes mit der Basislinie verglichen:
+
+| Quellen | Ausgabe | Ergebnis |
+|---|---|---|
+| geändert | unverändert | **Fehler** — die Ausgabe kann kein Produkt dieser Quellen sein. Neu kompilieren. |
+| geändert | geändert | Basislinie wird fortgeschrieben. Sie haben neu gebaut, das ist ein normales Release. |
+| unverändert | geändert | Warnung — kompilierte Ausgabe hat sich ohne Quelländerung bewegt. |
+| unverändert | unverändert | Geprüft. |
+
+Der Ausgabe-Hash macht das entscheidbar: ein Neubau muss die Ausgabe bewegen. Prüft man nur, ob sich die Quellen geändert haben, lehnt man damit auch einen *korrekten* Neubau ab — und da die Basislinie nie über einen Fehler hinweg fortgeschrieben wird, wäre der Checkout danach nie wieder releasable. Erzeugt ein Neubau wirklich byte-identische Ausgabe (etwa eine reine Kommentaränderung), setzen Sie mit `--rebaseline-assets` bewusst eine neue Basislinie.
 
 Nach einer **erfolgreichen** Prüfung werden die Quell- und Ausgabe-Hashes in `.git/sw-build/<plugin>/.sw-build-assets.json` festgehalten. Dieses Manifest ist **lokaler Zustand**: Es liegt im Git-Verzeichnis, erreicht also nie das Release-ZIP, wird von `git status` nie gesehen und kann nicht mit dem Checkout eines anderen Entwicklers kollidieren. Der erste Build in einem frischen Checkout legt eine Basislinie an; jeder spätere Build in demselben Checkout wird dagegen geprüft, und eine Änderung an einer Asset-Quelle ohne erneutes Kompilieren bricht den Release ab. Eine **fehlgeschlagene** Prüfung lässt die vorherige Basislinie unverändert, damit ein ignorierter Fehler niemals veraltete Ausgaben freigibt.
 

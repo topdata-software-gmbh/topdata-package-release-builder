@@ -84,11 +84,12 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
 @click.option('--with-foundation', is_flag=True, help='Force injection of TopdataFoundationSW6 code even if plugin does not declare it as dependency.')
 @click.option('--require-compiled-assets', is_flag=True, help='Abort when an asset target has sources but no compiled output. Off by default because most Topdata plugins ship hand-written Twig/CSS with no build step at all.')
+@click.option('--rebaseline-assets', is_flag=True, help='Discard the stored compiled-asset baseline and record the current one without comparing. Escape hatch when the staleness check cannot judge a rebuild.')
 @click.option('--debug', is_flag=True, help='Enable debug output for asset verification')
 @click.option('--version-increment', type=click.Choice(['none', 'patch', 'minor', 'major']), help='Specify the version increment method (none, patch, minor, major). Skips interactive prompt.')
 @click.option('--variant-prefix', default=None, help='Add a prefix to create a renamed variant package (e.g., "Free").')
 @click.option('--variant-suffix', default=None, help='Add a suffix to create a renamed variant package.')
-def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, require_compiled_assets, version_increment, variant_prefix, variant_suffix):
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, require_compiled_assets, rebaseline_assets, version_increment, variant_prefix, variant_suffix):
     zip_file_rsync_path = None
     """
     Build and package Shopware 6 plugin for release.
@@ -175,6 +176,7 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
             assets = verify_assets(
                 source_dir,
                 strict=require_compiled_assets,
+                rebaseline=rebaseline_assets,
                 verbose=verbose,
                 debug=debug,
                 console=console,

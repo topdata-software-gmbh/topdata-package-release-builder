@@ -8,7 +8,7 @@ title: FAQ
 A: `sw-build` compares your asset sources with the compiled output by **content hash**, not by timestamp. Two situations produce this error:
 
 1. *An asset target has sources but no compiled output at all* — and your plugin already ships compiled assets elsewhere, so it clearly is supposed to compile. You have changed a source and not rebuilt.
-2. *The sources changed since the last verified build in this checkout* — you edited a source and have not recompiled since.
+2. *The sources changed but the compiled output did not* — you edited a source and have not recompiled since. If you **did** recompile and still see this, your rebuild produced byte-identical output; use `--rebaseline-assets` once to record the new baseline.
 
 In both cases, run your asset build and run `sw-build` again.
 
