@@ -82,6 +82,9 @@ def copy_plugin_files(temp_dir, plugin_name, source_dir='.', verbose=False, cons
         'CONVENTIONS.md',
         'CONVENTIONS-*.md',
         'CLAUDE.md',
+        'AGENTS.md',
+        '_ai',
+        '.opencode*',
         'repomix-output.txt',
     ]
 
