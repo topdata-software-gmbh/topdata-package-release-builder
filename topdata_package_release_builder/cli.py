@@ -94,7 +94,6 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--variant-suffix', default=None, help='Add a suffix to create a renamed variant package.')
 @click.option('--skip-free', is_flag=True, help='Disable free-branch publishing even when enabled by .topdata/build.yaml.')
 def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, require_compiled_assets, rebaseline_assets, version_increment, variant_prefix, variant_suffix, skip_free):
-    zip_file_rsync_path = None
     """
     Build and package Shopware 6 plugin for release.
 
@@ -113,6 +112,7 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
     - --notify-slack: Send notification to Slack after successful upload
     - --verbose: Enable verbose output
     """
+    zip_file_rsync_path = None
     # Load environment variables
     load_env(verbose=verbose, console=console)
     get_manuals_dir(verbose=verbose, console=console)
