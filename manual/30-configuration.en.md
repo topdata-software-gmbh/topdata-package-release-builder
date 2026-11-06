@@ -41,7 +41,15 @@ These settings are used for sending release notifications.
 ## Free Branch Manifest (`.topdata/build.yaml`)
 
 In addition to the environment variables, each plugin repository can enable free variant
-publishing through a committed manifest file:
+publishing through a committed manifest file.
+
+The manifest is easiest to maintain through the CLI:
+
+```bash
+sw-build free enable [--branch main-free] [--zip]
+sw-build free disable
+sw-build free status
+```
 
 ```yaml
 free:                 # empty mapping = enabled with defaults

@@ -41,7 +41,15 @@ Diese Einstellungen werden zum Senden von Release-Benachrichtigungen verwendet.
 ## Free-Branch-Manifest (`.topdata/build.yaml`)
 
 Zusätzlich zu den Umgebungsvariablen kann jedes Plugin-Repository die Veröffentlichung einer
-kostenlosen Variante über eine committete Manifestdatei aktivieren:
+kostenlosen Variante über eine committete Manifestdatei aktivieren.
+
+Das Manifest wird am einfachsten über die CLI gepflegt:
+
+```bash
+sw-build free enable [--branch main-free] [--zip]
+sw-build free disable
+sw-build free status
+```
 
 ```yaml
 free:                 # leere Mapping = aktiviert mit Standardwerten

@@ -62,6 +62,17 @@ This will guide you through the versioning process and create the plugin ZIP fil
 
 ## Free Branch Publishing
 
+Enable or disable the opt-in from the plugin checkout:
+
+```bash
+sw-build free enable                    # writes `.topdata/build.yaml` with `free: {}`
+sw-build free enable --branch main-free --zip
+sw-build free disable                   # removes the free key
+sw-build free status
+```
+
+The commands edit a committed file; commit the change yourself.
+
 Add a committed `.topdata/build.yaml` to opt a plugin into free branch publishing:
 
 ```yaml

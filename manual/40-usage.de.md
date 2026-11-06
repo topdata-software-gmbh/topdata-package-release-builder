@@ -74,6 +74,27 @@ veröffentlicht jeder Build zusätzlich die Variante `Free<PluginName>` auf dem 
 `--skip-free` ist der einzige Weg, die Free-Arbeit zu überspringen; der bezahlte Release läuft
 weiter und es wird eine Warnung ausgegeben.
 
+### Free-Flag verwalten
+
+Das Manifest muss nicht von Hand geschrieben werden. Die folgenden Befehle bearbeiten
+`.topdata/build.yaml` im Plugin-Verzeichnis, ohne einen Build, Commit oder Push auszulösen:
+
+```bash
+sw-build free enable [--branch main-free] [--zip]
+sw-build free disable
+sw-build free status
+```
+
+- `enable` legt die Datei mit `free: {}` an (bzw. ergänzt den `free`-Schlüssel) und behält
+  andere Schlüssel bei. `--branch` wird vor dem Schreiben validiert, `--zip`/`--no-zip`
+  setzt die ZIP-Option.
+- `disable` entfernt den `free`-Schlüssel und löscht die Datei samt leerem `.topdata/`, wenn
+  nichts anderes übrig bleibt.
+- `status` zeigt an, ob die Funktion aktiv ist, welcher Branch verwendet wird und ob ein ZIP
+  erzeugt wird.
+
+Die Änderung an der committeten Datei muss anschließend selbst committet werden.
+
 ## Hauptfunktionen im Detail
 
 ### Dateiausschluss

@@ -74,6 +74,26 @@ every build also publishes the `Free<PluginName>` variant to the remote branch
 `--skip-free` is the only way to bypass the free work; the paid release continues and a warning
 is printed.
 
+### Managing the Free Flag
+
+The manifest does not have to be written by hand. These commands edit `.topdata/build.yaml`
+in the plugin directory without triggering a build, commit or push:
+
+```bash
+sw-build free enable [--branch main-free] [--zip]
+sw-build free disable
+sw-build free status
+```
+
+- `enable` creates the file with `free: {}` (or adds the `free` key) and preserves other keys.
+  `--branch` is validated before writing; `--zip`/`--no-zip` sets the ZIP option.
+- `disable` removes the `free` key and deletes the file plus an empty `.topdata/` when nothing
+  else remains.
+- `status` reports whether the feature is enabled, which branch is used and whether a ZIP is
+  created.
+
+The change to the committed file must still be committed by you.
+
 ## Key Features in Detail
 
 ### File Exclusion
