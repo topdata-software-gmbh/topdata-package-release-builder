@@ -11,6 +11,7 @@ import json
 import shutil
 import os
 from pathlib import Path
+from typing import Iterable
 from .tree import build_ascii_directory_tree
 
 
@@ -41,7 +42,15 @@ def get_plugin_info(source_dir='.', verbose=False, console=None):
         console.print(f"[dim]→ Found version: {version}[/]")
     return plugin_name, version, composer_data['version']  # Return original version string too
 
-def copy_plugin_files(temp_dir, plugin_name, source_dir='.', verbose=False, console=None):
+def copy_plugin_files(
+    temp_dir,
+    plugin_name,
+    source_dir='.',
+    verbose=False,
+    console=None,
+    *,
+    extra_excludes: Iterable[str] = (),
+):
     """
     Copy plugin files to temporary directory.
 
@@ -51,6 +60,8 @@ def copy_plugin_files(temp_dir, plugin_name, source_dir='.', verbose=False, cons
         source_dir (str): The directory containing the plugin source code.
         verbose (bool): Enable verbose output.
         console (Console): Rich console instance for output.
+        extra_excludes (Iterable[str]): Additional ignore patterns appended to
+            the built-in list. Defaults to no extra patterns.
 
     Returns:
         str: Path to the copied plugin directory.
@@ -103,6 +114,7 @@ def copy_plugin_files(temp_dir, plugin_name, source_dir='.', verbose=False, cons
                     numAdded += 1
             if verbose and console:
                 console.print(f"[dim]→ Added {numAdded} patterns from {blacklist_file}[/]")
+    ignored_patterns.extend(extra_excludes)
     if verbose and console:
         console.print(f"[dim]→ Creating plugin directory: {plugin_dir}[/]")
         console.print(f"[dim]→ Ignoring patterns: {', '.join(ignored_patterns)}[/]")

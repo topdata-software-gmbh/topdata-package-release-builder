@@ -33,7 +33,8 @@ Der Build-Prozess kann mit den folgenden Optionen angepasst werden:
 |------------------------|-------------------------------------------------------------------------------------------------------------|
 | `--output-dir <pfad>`  | Überschreibt das `RELEASE_DIR` aus Ihrer `.env`-Datei und speichert das Paket im angegebenen Pfad.            |
 | `--source-dir <pfad>`  | Gibt das Quellverzeichnis des Plugins an. Standard ist das aktuelle Verzeichnis (`.`).                        |
-| `--no-sync`            | Deaktiviert die Synchronisierung des Pakets zum Remote-Server, auch wenn rsync in `.env` konfiguriert ist.    |
+| `--no-sync`            | Deaktiviert die Synchronisierung des Pakets zum Remote-Server, auch wenn rsync in `.env` konfiguriert ist. Unterdrückt **nicht** die Free-Branch-Veröffentlichung. |
+| `--skip-free`          | Deaktiviert die gesamte Free-Branch-Arbeit, auch wenn `.topdata/build.yaml` sie aktiviert. Gibt eine Warnung aus. |
 | `-s`, `--notify-slack` | Sendet nach einem erfolgreichen Build und Sync eine Benachrichtigung an den konfigurierten Slack-Kanal.       |
 | `--version-increment`  | Überspringt die interaktive Versionsabfrage. Muss einer der Werte `none`, `patch`, `minor`, `major` sein.      |
 | `--variant-prefix <str>`| Erstellt eine umbenannte Variante des Plugins mit dem angegebenen Präfix (z. B. "Free").                      |
@@ -51,6 +52,27 @@ Um eine Patch-Version eines Plugins zu erstellen, eine "Free"-Variante zu erzeug
 ```bash
 sw-build --version-increment patch --variant-prefix Free --notify-slack
 ```
+
+### Free-Branch-Veröffentlichung
+
+Enthält das Plugin-Repository eine committete `.topdata/build.yaml` mit einem `free`-Mapping,
+veröffentlicht jeder Build zusätzlich die Variante `Free<PluginName>` auf dem Remote-Branch
+`origin/main-free` (oder `free.branch`):
+
+1. Der Payload wird in einem temporären Verzeichnis erzeugt und mit `Free` umbenannt; die
+   Foundation-Injektion wird genau wie beim bezahlten Build angewendet.
+2. Der erste Build erzeugt einen Commits ohne Vorgänger. Jeder weitere Build hängt genau einen
+   Commit an die zuletzt veröffentlichte Spitze an — `git pull` im Shop reicht, ein Reset ist
+   nie nötig. Es wird nie erzwungen gepusht und nie Historie umgeschrieben.
+3. Ein Build ohne Inhaltsänderung (auch wenn sich nur der `Created`-Zeitstempel in
+   `release_info.txt` ändert) erzeugt keinen Commit.
+4. Der Arbeitsbaum muss sauber sein. Bei uncommitteten Änderungen bricht der Build ab, bevor
+   Uploads oder Benachrichtigungen stattfinden.
+5. `zip: true` erzeugt zusätzlich ein Free-ZIP und nutzt den normalen Upload-/Slack-Pfad;
+   `--no-sync` hält das ZIP lokal, veröffentlicht aber weiterhin den Branch.
+
+`--skip-free` ist der einzige Weg, die Free-Arbeit zu überspringen; der bezahlte Release läuft
+weiter und es wird eine Warnung ausgegeben.
 
 ## Hauptfunktionen im Detail
 

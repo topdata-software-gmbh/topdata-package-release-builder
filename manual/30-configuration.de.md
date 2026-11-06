@@ -37,3 +37,22 @@ Diese Einstellungen werden zum Senden von Release-Benachrichtigungen verwendet.
 |-------------------------------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
 | `FOUNDATION_PLUGIN_PATH`      | Nein         | Der absolute Pfad zu Ihrem lokalen Checkout des `topdata-foundation-sw6`-Plugins. Dies ist für die Foundation-Injection-Funktion erforderlich.                              | `/home/user/development/topdata-foundation-sw6`            |
 | `DOCS_GENERATOR_PROJECT_PATH` | Nein         | Der absolute Pfad zu einem Dokumentationsgenerator-Projekt. Wenn gesetzt, wird nach einem Build eine hilfreiche Erinnerung zur Ausführung des Generators in der finalen Erfolgsmeldung angezeigt. | `/home/user/development/docs-generator`                    |
+
+## Free-Branch-Manifest (`.topdata/build.yaml`)
+
+Zusätzlich zu den Umgebungsvariablen kann jedes Plugin-Repository die Veröffentlichung einer
+kostenlosen Variante über eine committete Manifestdatei aktivieren:
+
+```yaml
+free:                 # leere Mapping = aktiviert mit Standardwerten
+  branch: main-free   # optional, Standard "main-free"
+  zip: false          # optional, Standard false
+```
+
+- Fehlt die Datei oder der `free`-Schlüssel, ist die Funktion deaktiviert und der Build bleibt
+  unverändert.
+- `free: {}` oder `free:` aktiviert die Funktion mit den Standardwerten.
+- `zip: true` erzeugt zusätzlich ein `<FreePluginName>-v<version>.zip` und nutzt den normalen
+  Upload-/Benachrichtigungspfad. `--no-sync` hält das Archiv lokal, unterdrückt aber nie den
+  Branch-Push.
+- Das Manifest wird nie in das Release-ZIP oder den Free-Branch-Payload aufgenommen.

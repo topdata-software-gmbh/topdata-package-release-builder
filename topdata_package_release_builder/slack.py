@@ -13,6 +13,7 @@ def send_release_notification(
     download_url: str,
     webhook_url: str,
     variant_info: Optional[Dict] = None,  # Add this parameter
+    free_info: Optional[Dict] = None,
     verbose: bool = False,
     console: Console = None
 ) -> bool:
@@ -83,6 +84,30 @@ def send_release_notification(
                 "text": {
                     "type": "mrkdwn",
                     "text": f"*Download Variant:*\n{variant_download_url}"
+                }
+            })
+
+    # --- Add Free archive info if it exists ---
+    if free_info and free_info.get('name'):
+        free_package_info = create_release_info(
+            free_info['name'], branch, commit, version, verbose, console, table_style="panel"
+        )
+
+        message["blocks"].append({"type": "divider"})
+        message["blocks"].append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Free Package:*\n```{free_package_info}```"
+            }
+        })
+
+        if free_info.get('download_url'):
+            message["blocks"].append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Download Free:*\n{free_info['download_url']}"
                 }
             })
 

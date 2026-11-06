@@ -12,6 +12,7 @@ dependencies = [
     "python-dotenv",
     "InquirerPy>=0.3.4",
     "requests",
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]

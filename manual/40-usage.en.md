@@ -33,7 +33,8 @@ The build process can be customized with the following options:
 |------------------------|-------------------------------------------------------------------------------------------------------------|
 | `--output-dir <path>`  | Overrides the `RELEASE_DIR` from your `.env` file, saving the package to the specified path.                  |
 | `--source-dir <path>`  | Specifies the plugin source directory. Defaults to the current directory (`.`).                               |
-| `--no-sync`            | Disables syncing the package to the remote server, even if rsync is configured in `.env`.                     |
+| `--no-sync`            | Disables syncing the package to the remote server, even if rsync is configured in `.env`. Does **not** suppress free branch publishing. |
+| `--skip-free`          | Disables all free branch work even when `.topdata/build.yaml` enables it. Prints a warning.                 |
 | `-s`, `--notify-slack` | Sends a notification to the configured Slack channel after a successful build and sync.                     |
 | `--version-increment`  | Skips the interactive version prompt. Must be one of `none`, `patch`, `minor`, `major`.                       |
 | `--variant-prefix <str>`| Creates a renamed variant of the plugin with the given prefix (e.g., "Free").                               |
@@ -51,6 +52,27 @@ To build a patch release of a plugin, create a "Free" variant, and notify Slack,
 ```bash
 sw-build --version-increment patch --variant-prefix Free --notify-slack
 ```
+
+### Free Branch Publishing
+
+If the plugin repository contains a committed `.topdata/build.yaml` with a `free` mapping,
+every build also publishes the `Free<PluginName>` variant to the remote branch
+`origin/main-free` (or `free.branch`):
+
+1. The payload is built in a temporary directory and renamed to `Free`; foundation injection is
+   applied exactly as for the paid build.
+2. The first build creates a commit without a parent. Every later build appends exactly one
+   commit to the last published tip — `git pull` in the shop is enough, no reset is ever needed.
+   The tool never force-pushes and never rewrites history.
+3. A build with no content change (including when only the `Created` timestamp in
+   `release_info.txt` changes) creates no commit.
+4. The working tree must be clean. With uncommitted changes the build aborts before any uploads
+   or notifications.
+5. `zip: true` additionally creates a free ZIP and uses the normal upload/Slack path;
+   `--no-sync` keeps the ZIP local but still publishes the branch.
+
+`--skip-free` is the only way to bypass the free work; the paid release continues and a warning
+is printed.
 
 ## Key Features in Detail
 

@@ -25,6 +25,8 @@ from .slack import send_release_notification
 from .manual import copy_manuals
 from .workflow import handle_versioning_workflow
 from .variant import transform_to_variant
+from .free_manifest import load_free_manifest
+from .free_branch import build_free_payload, publish_free_branch
 
 console = Console()
 
@@ -89,7 +91,8 @@ def _get_download_url(zip_file_rsync_path: str) -> str|None:
 @click.option('--version-increment', type=click.Choice(['none', 'patch', 'minor', 'major']), help='Specify the version increment method (none, patch, minor, major). Skips interactive prompt.')
 @click.option('--variant-prefix', default=None, help='Add a prefix to create a renamed variant package (e.g., "Free").')
 @click.option('--variant-suffix', default=None, help='Add a suffix to create a renamed variant package.')
-def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, require_compiled_assets, rebaseline_assets, version_increment, variant_prefix, variant_suffix):
+@click.option('--skip-free', is_flag=True, help='Disable free-branch publishing even when enabled by .topdata/build.yaml.')
+def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, with_foundation, require_compiled_assets, rebaseline_assets, version_increment, variant_prefix, variant_suffix, skip_free):
     zip_file_rsync_path = None
     """
     Build and package Shopware 6 plugin for release.
@@ -214,7 +217,86 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
             status.start()
 
             # Build process
+            free_branch_info = None
+            free_info = None
+            free_manifest = load_free_manifest(source_dir)
+            remote_config = get_remote_config(plugin_name, verbose=verbose, console=console)
+
             with tempfile.TemporaryDirectory() as temp_dir:
+                # ---- Free branch publication (before paid artifacts) ----
+                if free_manifest.enabled and skip_free:
+                    console.print(
+                        "[yellow]Warning:[/] Free branch publishing is skipped because "
+                        "--skip-free was passed."
+                    )
+                elif free_manifest.enabled:
+                    status.update("[bold blue]Publishing free branch...")
+                    with tempfile.TemporaryDirectory() as free_temp_dir:
+                        free_name, free_payload_root = build_free_payload(
+                            source_dir=source_dir,
+                            plugin_name=plugin_name,
+                            version=version,
+                            branch=branch,
+                            commit=commit,
+                            foundation_plugin_path=foundation_plugin_path if should_inject else None,
+                            assets={'targets': assets.targets, 'toolchain': assets.toolchain},
+                            console=console,
+                            temp_dir=free_temp_dir,
+                        )
+                        free_snapshot = publish_free_branch(
+                            repo_root=source_dir,
+                            payload_root=free_payload_root,
+                            branch=free_manifest.branch,
+                            version=version,
+                            console=console,
+                        )
+                        free_branch_info = {
+                            'name': free_name,
+                            'branch': free_snapshot.branch,
+                            'commit': free_snapshot.commit,
+                            'committed': free_snapshot.committed,
+                            'pushed': free_snapshot.pushed,
+                        }
+
+                        if free_manifest.zip:
+                            status.update("[bold blue]Creating free ZIP archive...")
+                            free_zip_name = f"{free_name}-v{version}.zip"
+                            free_zip_path = os.path.join(output_dir, free_zip_name)
+                            create_archive(
+                                output_dir, free_name, version, free_temp_dir, verbose, console
+                            )
+
+                            free_sync_status = None
+                            free_download_url = None
+                            free_zip_file_rsync_path = None
+                            if remote_config:
+                                if no_sync:
+                                    free_sync_status = False
+                                    console.print(
+                                        "[yellow]Free archive sync is disabled by --no-sync flag[/]"
+                                    )
+                                else:
+                                    status.update("[bold blue]Syncing free archive to remote server...")
+                                    free_zip_file_rsync_path = sync_to_remote(
+                                        free_zip_path,
+                                        remote_config,
+                                        verbose=verbose,
+                                        console=console,
+                                    )
+                                    free_sync_status = True
+                                    free_download_url = _get_download_url(
+                                        free_zip_file_rsync_path
+                                    )
+
+                            free_info = {
+                                'name': free_name,
+                                'zip_name': free_zip_name,
+                                'zip_path': free_zip_path,
+                                'sync_status': free_sync_status,
+                                'download_url': free_download_url,
+                                'zip_file_rsync_path': free_zip_file_rsync_path,
+                            }
+
                 status.update("[bold blue]Copying plugin files...")
                 if verbose:
                     console.print(f"[dim]→ Using temporary directory: {temp_dir}[/]")
@@ -279,7 +361,6 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                 console.print("-------------------------------------------------------")
                 sync_status = None
                 download_url = None
-                remote_config = get_remote_config(plugin_name, verbose=verbose, console=console)
                 if remote_config:
                     if no_sync:
                         sync_status = False
@@ -369,9 +450,13 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
             webhook_url = os.getenv('SLACK_WEBHOOK_URL')
             if verbose:
                 console.print(f"[dim]→ Slack webhook URL: {'configured' if webhook_url else 'missing'}[/]")
+            free_synced = bool(free_info) and (
+                free_info.get('download_url') is not None
+                or free_info.get('sync_status') is True
+            )
             if not webhook_url:
                 console.print("[yellow]Warning:[/] SLACK_WEBHOOK_URL not set in .env")
-            elif not sync_status and download_url is None:
+            elif not sync_status and download_url is None and not free_synced:
                 console.print("[yellow]Warning:[/] Skipping Slack notification as sync was not successful")
             else:
                 slack_status = send_release_notification(
@@ -381,18 +466,29 @@ def build_plugin(output_dir, source_dir, no_sync, notify_slack, verbose, debug, 
                 commit=commit,
                 download_url=download_url,  # Using the sync URL as the download link
                 webhook_url=webhook_url,
-                variant_info=variant_info,  # Add this line
+                variant_info=variant_info,
+                free_info=free_info,
                 verbose=verbose,
                 console=console
             )
 
-        _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status, variant_info)
+        _show_success_message(
+            plugin_name,
+            version,
+            zip_name,
+            output_dir,
+            zip_file_rsync_path,
+            slack_status,
+            variant_info,
+            free_branch_info,
+            free_info,
+        )
 
     except Exception as e:
         console.print(f"[bold red]Error:[/] {str(e)}", style="red")
         raise click.Abort() from e
 
-def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status=None, variant_info=None):
+def _show_success_message(plugin_name, version, zip_name, output_dir, zip_file_rsync_path, slack_status=None, variant_info=None, free_branch_info=None, free_info=None):
     """Display success message after build completion."""
     sync_message = ""
     if zip_file_rsync_path:
@@ -450,9 +546,32 @@ Version: v{version}
 Archive: {variant_info['zip_name']}
 Location: {output_dir}/{variant_info['zip_name']}{variant_sync_message}"""
 
+    # Build free branch/archive info if available
+    free_message = ""
+    if free_branch_info:
+        free_message = "\n\n[bold magenta]Free Branch:[/]"
+        free_message += f"\nBranch: {free_branch_info['branch']}"
+        if free_branch_info.get('commit'):
+            free_message += f"\nCommit: {free_branch_info['commit']}"
+        else:
+            free_message += "\nStatus: unchanged (nothing to publish)"
+
+    if free_info:
+        free_sync_message = ""
+        if free_info.get('zip_file_rsync_path'):
+            free_sync_message = "\n[green]Successfully synced to remote server[/]"
+        elif free_info.get('sync_status') is False:
+            free_sync_message = "\n[yellow]Remote sync was disabled[/]"
+        free_message += f"""
+[bold magenta]Free Archive:[/]
+Archive: {free_info['zip_name']}
+Location: {output_dir}/{free_info['zip_name']}{free_sync_message}"""
+        if free_info.get('download_url'):
+            free_message += f"\n[green]DL: {free_info['download_url']}[/]"
+
     console.print(Panel(f"""
 [bold green]Plugin successfully built![/]
-{main_package_info}{variant_package_info}{slack_message}{docs_message}
+{main_package_info}{variant_package_info}{free_message}{slack_message}{docs_message}
 
 [italic]Note: Built packages are stored in the release directory.[/]
     """, title="Success"))
