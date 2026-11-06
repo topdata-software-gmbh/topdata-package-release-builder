@@ -27,6 +27,7 @@ from .workflow import handle_versioning_workflow
 from .variant import transform_to_variant
 from .free_manifest import load_free_manifest
 from .free_branch import build_free_payload, publish_free_branch
+from .commands.free_cmd import free_group
 
 console = Console()
 
@@ -576,9 +577,44 @@ Location: {output_dir}/{free_info['zip_name']}{free_sync_message}"""
 [italic]Note: Built packages are stored in the release directory.[/]
     """, title="Success"))
 
-def main():
+class DefaultGroup(click.Group):
+    """Click group that treats a leading option as the default `build` command."""
+
+    def __init__(self, *args, default_command: str, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.default_command = default_command
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        # Click's group parser rejects unknown options before subcommand
+        # resolution, so prepend the default command before parsing. `--help`
+        # and `-h` must still resolve to the group so users can discover the
+        # new subcommands.
+        if args and args[0].startswith('-') and not args[0].startswith(('-h', '--help')):
+            args = [self.default_command, *args]
+        return super().parse_args(ctx, args)
+
+
+@click.group(
+    cls=DefaultGroup,
+    default_command='build',
+    invoke_without_command=True,
+    context_settings=dict(help_option_names=['-h', '--help']),
+)
+@click.pass_context
+def cli(ctx: click.Context) -> None:
+    """Build and package Shopware 6 plugins."""
+    if ctx.invoked_subcommand is None:
+        ctx.invoke(build_plugin)
+
+
+cli.add_command(build_plugin, 'build')
+cli.add_command(free_group)
+
+
+def main() -> None:
     """Entry point for the CLI."""
-    build_plugin()
+    cli()
+
 
 if __name__ == '__main__':
     main()
