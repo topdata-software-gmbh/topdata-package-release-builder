@@ -6,7 +6,9 @@ disabling free branch publishing.
 """
 from __future__ import annotations
 
+import os
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -117,3 +119,109 @@ def load_free_manifest(plugin_root: str | Path = '.') -> FreeManifest:
     zip_enabled = _validate_zip(free.get('zip', False), path)
 
     return FreeManifest(enabled=True, path=path, branch=branch, zip=zip_enabled)
+
+
+def _read_document(plugin_root: str | Path) -> tuple[dict[str, object], Path]:
+    """Return the manifest mapping and its path.
+
+    A missing or empty file yields an empty mapping. A non-mapping root aborts.
+    """
+    path = Path(plugin_root) / MANIFEST_RELATIVE_PATH
+    if not path.is_file():
+        return {}, path
+
+    try:
+        document = yaml.safe_load(path.read_text(encoding='utf-8'))
+    except yaml.YAMLError as exc:
+        raise FreeManifestError(f"Invalid YAML in {path}: {exc}") from exc
+    except OSError as exc:
+        raise FreeManifestError(f"Could not read manifest {path}: {exc}") from exc
+
+    if document is None:
+        return {}, path
+    if not isinstance(document, dict):
+        raise FreeManifestError(
+            f"Invalid manifest {path}: the root document must be a mapping"
+        )
+    return document, path
+
+
+def _serialize_document(document: dict[str, object]) -> str:
+    return yaml.safe_dump(document, sort_keys=False, allow_unicode=True)
+
+
+def _write_document(document: dict[str, object], path: Path) -> None:
+    """Atomically replace the manifest, creating parent directories."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = _serialize_document(document)
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent, prefix='.build-', suffix='.yaml.tmp'
+    )
+    try:
+        with os.fdopen(descriptor, 'w', encoding='utf-8') as handle:
+            handle.write(payload)
+        os.replace(temporary_name, path)
+    except BaseException:
+        try:
+            os.unlink(temporary_name)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def enable_free(
+    plugin_root: str | Path = '.',
+    *,
+    branch: str | None = None,
+    zip_enabled: bool | None = None,
+) -> FreeManifest:
+    """Enable free publishing, merging into an existing free mapping.
+
+    ``branch`` and ``zip_enabled`` are only written when supplied; existing
+    values are preserved otherwise. The file is written atomically and the
+    result is re-read through the normal validator.
+    """
+    document, path = _read_document(plugin_root)
+
+    free = document.get('free')
+    if free is None:
+        free = {}
+    if not isinstance(free, dict):
+        raise FreeManifestError(f"Invalid manifest {path}: 'free' must be a mapping")
+
+    updated = dict(free)
+    if branch is not None:
+        _validate_branch(branch, path)
+        updated['branch'] = branch
+    if zip_enabled is not None:
+        _validate_zip(zip_enabled, path)
+        updated['zip'] = zip_enabled
+
+    document['free'] = updated
+    if _serialize_document(document) != (path.read_text(encoding='utf-8') if path.is_file() else ''):
+        _write_document(document, path)
+
+    return load_free_manifest(plugin_root)
+
+
+def disable_free(plugin_root: str | Path = '.') -> FreeManifest:
+    """Remove the free key; clean up the file/directory when nothing remains."""
+    document, path = _read_document(plugin_root)
+    if 'free' not in document:
+        return load_free_manifest(plugin_root)
+
+    del document['free']
+    if document:
+        _write_document(document, path)
+    else:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        else:
+            try:
+                path.parent.rmdir()
+            except OSError:
+                pass
+
+    return load_free_manifest(plugin_root)
