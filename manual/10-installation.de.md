@@ -13,6 +13,24 @@ Befolgen Sie diese Schritte, um das `sw-build`-Tool auf Ihrem lokalen Entwicklun
 - `rsync` (erforderlich für die Remote-Sync-Funktion).
 - (Optional) `pandoc` mit einer LaTeX-Engine wie `xelatex`, falls Sie das beiliegende `pdf.py`-Skript zur Erstellung von PDF-Handbüchern verwenden möchten.
 
+## Schnellinstallation (Skript)
+
+Das Repository enthält ein Installationsskript, das die Schritte 2–4 unten übernimmt und
+`sw-build` im PATH verlinkt. Es behält die editierbare Installation bei, da das Tool die
+`.env`-Datei aus diesem Repository liest.
+
+```bash
+./scripts/install.sh                 # nach ~/.local/bin installieren
+./scripts/install.sh --prefix DIR    # woandershin installieren
+./scripts/install.sh --dry-run       # nur den Plan anzeigen, nichts ändern
+```
+
+Das Skript erstellt/aktualisiert `./.venv`, installiert das Projekt mit `uv pip install -e .`
+(Fallback: `python3 -m venv` + `pip`), kopiert `.env.example` nach `.env`, falls `.env` fehlt,
+und verlinkt den Launcher. Anschließend führt es `sw-build --help` als Funktionstest aus.
+Mit `--copy` wird der Launcher kopiert statt verlinkt, mit `--no-install` wird ein vorhandenes
+`.venv` weiterverwendet.
+
 ## Schritt 1: Repository klonen
 
 Klonen Sie zunächst das Projekt aus seinem Git-Repository an einen Ort auf Ihrem Rechner.

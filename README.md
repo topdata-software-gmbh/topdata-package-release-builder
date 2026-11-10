@@ -6,6 +6,12 @@ The Topdata Package Release Builder (`sw-build`) is a command-line tool designed
 
 For detailed instructions on installation, configuration, and usage, please see the full user guide in the `manual/` directory.
 
+## Requirements
+
+- Python 3.10+
+- Git (required)
+- `rsync` (only when remote sync is configured)
+
 ## Key Features
 
 - **Automated Packaging:** Creates release-ready ZIP archives of Shopware 6 plugins.
@@ -43,12 +49,18 @@ For detailed instructions on installation, configuration, and usage, please see 
     ```bash
     cp .env.example .env
     ```
-    Edit `.env` and set at least the required `RELEASE_DIR` value.
+    Edit `.env` and set at least the required `RELEASE_DIR` value. The tool reads this `.env`
+    from the repository where it is installed (an editable install is assumed), not from the
+    plugin directory you build.
 
 5.  Test the installation:
     ```bash
     sw-build --help
     ```
+
+Alternatively, `./scripts/install.sh` performs steps 2–4 and links `sw-build` onto your PATH
+(`--prefix DIR` to install elsewhere, `--dry-run` to preview). It keeps the editable install so
+the repository `.env` stays the configuration source.
 
 ## Basic Usage
 
@@ -59,6 +71,13 @@ sw-build
 ```
 
 This will guide you through the versioning process and create the plugin ZIP file in the directory specified by `RELEASE_DIR` in your `.env` file.
+
+> **Version bumps publish automatically.** If you choose a patch/minor/major increment (or pass
+> `--version-increment`), `sw-build` updates `composer.json`, then commits, tags, and pushes the
+> branch and tag to `origin`. If the working tree is dirty it first asks to `git add .`, so the
+> bump commit may include those staged changes.
+
+For the complete option list and feature details, see `manual/40-usage.en.md`.
 
 ## Free Branch Publishing
 
@@ -95,3 +114,16 @@ On every build the tool publishes `Free<PluginName>` to `origin/<branch>`:
 - `zip: true` additionally creates `<FreePluginName>-v<version>.zip` and follows the normal
   upload/notification path. `--no-sync` keeps that archive local but never suppresses the branch.
 - Without a manifest, builds behave exactly as before.
+
+## Development
+
+```bash
+uv sync --extra dev                       # project + test/lint tools
+uv run --extra dev pytest                 # full test suite
+uv run --extra dev pytest tests/test_free_branch.py::test_name
+uv run --extra dev ruff check .           # lint
+```
+
+Tests build real temporary git repositories (a bare `origin` plus a plugin clone), so
+publication behavior is exercised rather than mocked. There is no CI; run pytest and ruff
+before committing.

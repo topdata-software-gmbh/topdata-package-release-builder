@@ -13,6 +13,22 @@ Follow these steps to install the `sw-build` tool on your local development mach
 - `rsync` (required for the remote sync feature).
 - (Optional) `pandoc` with a LaTeX engine like `xelatex` if you intend to use the included `pdf.py` script for generating PDF manuals.
 
+## Quick Install (Script)
+
+The repository ships an installer that performs steps 2–4 below and links `sw-build` onto your
+PATH. It keeps the editable install, because the tool reads `.env` from this repository.
+
+```bash
+./scripts/install.sh                 # install to ~/.local/bin
+./scripts/install.sh --prefix DIR    # install elsewhere
+./scripts/install.sh --dry-run       # show the plan without changing anything
+```
+
+The script creates/updates `./.venv`, installs the project with `uv pip install -e .` (falling
+back to `python3 -m venv` + `pip`), copies `.env.example` to `.env` when `.env` is missing, and
+symlinks the launcher. It then runs `sw-build --help` as a smoke test. Use `--copy` to copy the
+launcher instead of symlinking it, or `--no-install` to reuse an existing `.venv`.
+
 ## Step 1: Clone the Repository
 
 First, clone the project from its Git repository to a location on your machine.
