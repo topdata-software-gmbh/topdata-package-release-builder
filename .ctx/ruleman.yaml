@@ -1,0 +1,7 @@
+project_id: topdata-package-release-builder
+technologies:
+  bash: {}
+  python: {}
+export:
+  format: markdown
+  path: _ai/conventions.md
