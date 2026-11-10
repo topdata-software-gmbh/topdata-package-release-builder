@@ -27,7 +27,21 @@ For detailed instructions on installation, configuration, and usage, please see 
     - Optionally sends a release notification to a Slack channel with a download link.
     - Optionally publishes documentation to a separate Git repository.
 
-## Installation
+## Quick Install
+
+Clone into `/topdata` and run the installer (creates `./.venv`, installs the project
+editable, seeds `.env` from `.env.example`, and links `sw-build` into `~/.local/bin`):
+
+```bash
+cd /topdata
+git clone git@github.com:topdata-software-gmbh/topdata-package-release-builder.git
+cd topdata-package-release-builder
+./scripts/install.sh
+```
+
+Then edit `.env` and set `RELEASE_DIR`, and verify with `sw-build --help`.
+
+## Installation (manual)
 
 1.  Clone the repository:
     ```bash
@@ -76,7 +90,7 @@ from `.env.example` if missing, links a `sw-build` launcher onto your PATH, and 
 The launcher should stay a symlink to `./.venv/bin/sw-build`. Because the install is editable,
 `sw-build self-upgrade` can pull new code and refresh dependencies in that same environment.
 
-## Upgrading
+## Quick Update
 
 For an editable install (including one created by `scripts/install.sh`), update the tool from
 its own Git checkout:
@@ -86,7 +100,9 @@ sw-build self-upgrade          # pull latest code and refresh dependencies
 sw-build self-upgrade --force  # stash local changes (including untracked) first
 ```
 
-The command refuses to run on a dirty tree unless `--force` is given, reports when the checkout
+## Upgrading
+
+`self-upgrade` refuses to run on a dirty tree unless `--force` is given, reports when the checkout
 is already current, and reinstalls into the interpreter that is running `sw-build` (the `.venv`
 launcher from the installer), falling back from `uv` to `pip`. Re-run your command afterwards so
 the new code is loaded. A packaged wheel has no upstream to pull and cannot self-upgrade.
