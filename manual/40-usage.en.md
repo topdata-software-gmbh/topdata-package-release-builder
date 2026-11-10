@@ -94,6 +94,26 @@ sw-build free status
 
 The change to the committed file must still be committed by you.
 
+### Self-Upgrading
+
+`sw-build` can update its own checkout by pulling the configured Git remote and reinstalling
+the package in editable mode:
+
+```bash
+sw-build self-upgrade          # refuses to run with a dirty tree
+sw-build self-upgrade --force  # stashes local changes (including untracked files) first
+```
+
+- This only works for a Git installation of the release builder. A packaged wheel has no
+  upstream to pull.
+- With local changes the command aborts before touching anything. `--force` runs
+  `git stash push --include-untracked` with the message `sw-build self-upgrade`.
+- When the pull brings new commits, dependencies are refreshed in the environment running
+  `sw-build` (the `.venv` launcher created by `scripts/install.sh`) with `uv pip install
+  --python <interpreter> -e .`, falling back to that interpreter's `pip`.
+- An already current checkout exits successfully without reinstalling anything.
+- Re-run your command after upgrading so the new code is loaded.
+
 ## Key Features in Detail
 
 ### File Exclusion

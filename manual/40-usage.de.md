@@ -95,6 +95,27 @@ sw-build free status
 
 Die Änderung an der committeten Datei muss anschließend selbst committet werden.
 
+### Selbst-Upgrade
+
+`sw-build` kann seine eigene Installation aktualisieren, indem es den konfigurierten
+Git-Remote pullt und das Paket erneut editierbar installiert:
+
+```bash
+sw-build self-upgrade          # läuft bei unsauberem Arbeitsbaum nicht
+sw-build self-upgrade --force  # stasht vorher lokale Änderungen (inkl. untracked)
+```
+
+- Funktioniert nur bei einer Git-Installation des Release Builders. Ein fertiges Wheel hat
+  keinen Upstream zum Pullen.
+- Bei lokalen Änderungen bricht der Befehl ab, bevor etwas verändert wird. `--force` führt
+  `git stash push --include-untracked` mit der Nachricht `sw-build self-upgrade` aus.
+- Bringt der Pull neue Commits, werden die Abhängigkeiten in der Umgebung des laufenden
+  `sw-build` (dem `.venv`-Launcher aus `scripts/install.sh`) mit `uv pip install --python
+  <interpreter> -e .` neu installiert; ohne `uv` wird `pip` dieses Interpreters verwendet.
+- Ist die Installation bereits aktuell, endet der Befehl erfolgreich, ohne etwas neu zu
+  installieren.
+- Starten Sie Ihren Befehl nach dem Upgrade erneut, damit der neue Code geladen wird.
+
 ## Hauptfunktionen im Detail
 
 ### Dateiausschluss

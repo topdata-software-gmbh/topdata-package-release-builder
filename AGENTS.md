@@ -37,6 +37,8 @@ plugin checkout (or `--source-dir`), not from this repo. Entry point:
 - `plugin.py` — composer metadata, payload copy/exclusions, ZIP; `assets.py` — asset verification.
 - `variant.py` — rename/namespace transform; `foundation_injector.py` — foundation code injection.
 - `free_manifest.py` / `free_branch.py` / `commands/free_cmd.py` — free-branch feature.
+- `commands/self_upgrade_cmd.py` — `self-upgrade`: pull this checkout and refresh deps into the
+  running interpreter (the `.venv` launcher from `scripts/install.sh`).
 - `config.py`, `git.py`, `release.py`, `remote.py`, `slack.py`, `manual.py`, `pdf.py`, `tree.py`,
   `table.py`.
 - `tests/conftest.py` builds `plugin_repo` / `foundation_plugin_repo` on real `git init` + a bare

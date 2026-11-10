@@ -21,6 +21,7 @@ For detailed instructions on installation, configuration, and usage, please see 
 - **Plugin Variant Creation:** Generates renamed variants of a plugin (e.g., a "Free" version) by transforming namespaces, metadata, and class names using `--variant-prefix` and `--variant-suffix` flags.
 - **Main-Free Branch Publishing:** Opt-in `.topdata/build.yaml` manifest publishes a self-contained `Free<PluginName>` variant to an append-only `main-free` branch, so shop installations update with a plain `git pull`.
 - **Asset Verification:** Verifies compiled storefront and administration assets (JS/CSS) against their sources by SHA-256 content hash, so a release cannot ship stale or entirely missing compiled output.
+- **Self-Upgrade:** `sw-build self-upgrade` pulls the latest code for an editable install and refreshes the package in the same virtualenv; `--force` stashes local changes first.
 - **Deployment & Notifications:**
     - Optionally syncs the built package to a remote server using `rsync`.
     - Optionally sends a release notification to a Slack channel with a download link.
@@ -58,9 +59,37 @@ For detailed instructions on installation, configuration, and usage, please see 
     sw-build --help
     ```
 
-Alternatively, `./scripts/install.sh` performs steps 2–4 and links `sw-build` onto your PATH
-(`--prefix DIR` to install elsewhere, `--dry-run` to preview). It keeps the editable install so
-the repository `.env` stays the configuration source.
+### Installer script
+
+`./scripts/install.sh` automates the steps above: it creates or updates `./.venv`, installs the
+project in editable mode (so the repository `.env` stays the configuration source), seeds `.env`
+from `.env.example` if missing, links a `sw-build` launcher onto your PATH, and smoke-tests it.
+
+```bash
+./scripts/install.sh                 # install to ~/.local/bin
+./scripts/install.sh --prefix DIR    # install elsewhere
+./scripts/install.sh --copy          # copy the launcher instead of symlinking
+./scripts/install.sh --no-install    # reuse ./.venv, skip dependency install
+./scripts/install.sh --dry-run       # print the plan, change nothing
+```
+
+The launcher should stay a symlink to `./.venv/bin/sw-build`. Because the install is editable,
+`sw-build self-upgrade` can pull new code and refresh dependencies in that same environment.
+
+## Upgrading
+
+For an editable install (including one created by `scripts/install.sh`), update the tool from
+its own Git checkout:
+
+```bash
+sw-build self-upgrade          # pull latest code and refresh dependencies
+sw-build self-upgrade --force  # stash local changes (including untracked) first
+```
+
+The command refuses to run on a dirty tree unless `--force` is given, reports when the checkout
+is already current, and reinstalls into the interpreter that is running `sw-build` (the `.venv`
+launcher from the installer), falling back from `uv` to `pip`. Re-run your command afterwards so
+the new code is loaded. A packaged wheel has no upstream to pull and cannot self-upgrade.
 
 ## Basic Usage
 

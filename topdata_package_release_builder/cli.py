@@ -28,6 +28,7 @@ from .variant import transform_to_variant
 from .free_manifest import load_free_manifest
 from .free_branch import build_free_payload, publish_free_branch
 from .commands.free_cmd import free_group
+from .commands.self_upgrade_cmd import self_upgrade_command
 
 console = Console()
 
@@ -609,6 +610,7 @@ def cli(ctx: click.Context) -> None:
 
 cli.add_command(build_plugin, 'build')
 cli.add_command(free_group)
+cli.add_command(self_upgrade_command)
 
 
 def main() -> None:
